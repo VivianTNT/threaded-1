@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Large data and model artifacts
 recsys/data/*
 recsys/artifacts/*
@@ -74,10 +75,14 @@ supabase/.branches
 lithos_main/
 
 # python
+=======
+# ---- Python ----
+>>>>>>> 6a15df8 (Web scraping proof of concept)
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+<<<<<<< HEAD
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -104,3 +109,84 @@ env.local
 .venv/
 .env.local
 env.local
+=======
+*.so
+*.egg
+*.egg-info/
+*.manifest
+*.spec
+
+# ---- Virtual environment ----
+.venv/
+env/
+venv/
+ENV/
+pip-wheel-metadata/
+*.lock
+
+# ---- Playwright / Browser Cache ----
+playwright/.cache/
+.playwright/
+.chromium/
+.user-data-dir/
+
+# ---- Data & Outputs ----
+data/raw_html/
+data/clean/
+data/emb/
+data/tmp/
+data/*.parquet
+data/*.csv
+data/*.jsonl
+!data/.gitkeep           # keep empty folders tracked if needed
+
+# ---- Logs & Reports ----
+*.log
+logs/
+reports/
+debug/
+__debug__/
+
+# ---- Notebooks / Checkpoints ----
+.ipynb_checkpoints/
+*.ipynb_save
+*.ipynb~
+*.checkpoint.ipynb
+
+# ---- System / Editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# ---- Environment / Secrets ----
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+secrets.json
+credentials.json
+config.yaml
+
+# ---- Streamlit & Cache ----
+.streamlit/config.toml
+.streamlit/cache/
+.streamlit/static/
+.cache/
+__cache__/
+
+# ---- FAISS / Model Artifacts ----
+*.faiss
+*.npy
+*.pt
+*.onnx
+*.h5
+models/
+checkpoints/
+>>>>>>> 6a15df8 (Web scraping proof of concept)
