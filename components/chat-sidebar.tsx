@@ -889,9 +889,9 @@ export function ChatSidebar({
                 <PickaxeIcon className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <h1 className="text-2xl font-semibold mb-1">Sign in to Lithos Chat</h1>
+            <h1 className="text-2xl font-semibold mb-1">Sign in to Threaded Chat</h1>
             <p className="text-sm text-muted-foreground mb-6">
-              Get AI-powered mining intelligence and analysis
+              Get AI-powered fashion styling and recommendations
             </p>
           </div>
 
@@ -932,7 +932,7 @@ export function ChatSidebar({
         <div className="flex items-center justify-between p-3 border-b">
           <div className="flex items-center gap-2">
             <PickaxeIcon className="h-4 w-4 text-primary" />
-            <span className="text-base font-medium">Lithos AI Assistant</span>
+            <span className="text-base font-medium">Threaded AI Assistant</span>
           </div>
         </div>
       )}
