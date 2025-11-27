@@ -1,143 +1,173 @@
-# Lithos - AI-Powered Critical Minerals Intelligence Platform
+# Threaded
 
-Lithos is a Bloomberg Terminal-inspired platform supercharged by artificial intelligence for the critical minerals industry, cutting weeks of mining analyst work to minutes and quantifying qualitative extraneous factors that humans may understate.
+**AI-Powered Personal Fashion Stylist**
 
-## Overview
-
-Lithos ingests drill-hole logs, satellite imagery, offtake contracts and ESG filings, then uses a fine-tuned LLM + geospatial models to deliver instant diligence notes, cash-flow forecasts and supply-chain risk maps for miners, traders and financiers.
+Threaded is a B2C web application that provides personalized fashion recommendations tailored to your unique style. Using AI technology, we curate clothing items from premium brands that match your preferences and existing wardrobe.
 
 ## Features
 
-### 🔍 Project Screener
-- Dense, spreadsheet-style table with 15+ mining projects
-- Advanced filtering with multi-select options
-- Real-time search across all columns
-- Column management and visibility controls
-- Bulk actions (export CSV, watchlist, compare)
-- Conditional formatting for IRR, ESG scores, and risk levels
+### 🎨 Personalized Recommendations
+- AI-curated fashion items from luxury and contemporary brands
+- Smart matching based on your style preferences
+- Daily updates with new discoveries
 
-### 📊 Project Detail View
-- Comprehensive single project analysis
-- Key metrics cards (NPV, IRR, Payback, Production)
-- Risk alerts and red flags
-- Interactive sensitivity analysis with real-time calculations
-- Similar projects recommendations
-- Multi-tab interface (Overview, Technical Report, AI Insights, Experts)
+### 👗 Wardrobe Integration
+- Upload photos of your existing clothes (optional)
+- Get recommendations that complement what you already own
+- Build a digital closet for better styling suggestions
 
-### 🔄 Project Comparison
-- Side-by-side comparison of multiple projects
-- Percentage differences with trend indicators
-- Detailed comparison table
-- Toggle switches for ESG Score, Jurisdiction Risk
-- Export to CSV/PDF functionality
+### 🤖 Fashion Agent
+- Automated discovery of new items matching your style
+- Real-time scanning of premium retailers
+- Progress tracking and notifications
+
+### 🔔 Smart Notifications
+- Alerts for new recommendations
+- Price drop notifications
+- Back-in-stock alerts for saved items
+
+### 💬 AI Stylist Chat
+- Ask questions about any product
+- Get styling advice and outfit suggestions
+- Receive personalized fashion guidance
+
+### 🛍️ Seamless Shopping
+- View detailed product information
+- Find similar items instantly
+- One-click access to brand websites
+- Add items to cart for easy tracking
 
 ## Tech Stack
 
-- **Framework:** Next.js 15.2.4
-- **UI Components:** Radix UI + shadcn/ui
-- **Styling:** Tailwind CSS
-- **Charts:** Recharts
-- **Tables:** TanStack Table
-- **Language:** TypeScript
-- **Font:** Geist
+- **Framework**: Next.js 15.2.4 with App Router
+- **Language**: TypeScript
+- **UI**: Radix UI + shadcn/ui components
+- **Styling**: Tailwind CSS
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **AI**: OpenAI API
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
+- Supabase account
 
 ### Installation
 
-1. Clone the repository:
+1. Clone the repository
 ```bash
-git clone https://github.com/anishkganesh/Lithos.git
-cd Lithos
+git clone <repository-url>
+cd threaded
 ```
 
-2. Install dependencies:
+2. Install dependencies
 ```bash
 npm install
-# or
-yarn install
 ```
 
-3. Run the development server:
+3. Set up environment variables
+```bash
+cp .env.example .env.local
+```
+
+Add your environment variables:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+OPENAI_API_KEY=your_openai_api_key
+```
+
+4. Run the development server
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-4. Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) in your browser.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## User Workflow
+
+1. **Sign Up** - Create your account to get started
+2. **Upload Wardrobe** - Optionally add photos of your existing clothes
+3. **Browse Recommendations** - Explore AI-curated fashion items
+4. **View Details** - Click any item to see full details and similar products
+5. **Take Action** - Save favorites, add to cart, or view on brand website
+6. **Run Fashion Agent** - Let AI discover new items for you
+7. **Stay Updated** - Receive notifications about new finds and updates
 
 ## Project Structure
 
 ```
-lithos/
+threaded/
 ├── app/                    # Next.js app directory
-│   ├── dashboard/         # Main dashboard page
-│   └── layout.tsx         # Root layout
+│   ├── api/               # API routes
+│   ├── notifications/     # Notifications page
+│   ├── login/            # Authentication
+│   └── signup/
 ├── components/            # React components
-│   ├── project-screener/  # Table and filtering components
-│   ├── project-detail-panel/ # Detail view components
+│   ├── fashion-recommendations/
+│   │   ├── fashion-grid.tsx
+│   │   └── product-detail-panel.tsx
+│   ├── fashion-agent-button.tsx
 │   └── ui/               # Reusable UI components
-├── lib/                   # Utilities and types
-│   ├── types/            # TypeScript type definitions
+├── lib/                   # Core utilities
+│   ├── types/            # TypeScript definitions
 │   └── data/             # Mock data
 └── public/               # Static assets
 ```
 
-## Deployment
+## Design Philosophy
 
-This project is optimized for deployment on Vercel:
+Threaded embraces a **minimalist, classy aesthetic** inspired by premium fashion brands:
 
-1. Push your code to GitHub
-2. Import the repository in Vercel
-3. Deploy with default settings
+- Clean, spacious layouts
+- High-quality product imagery
+- Subtle animations and transitions
+- Intuitive navigation
+- Sophisticated color palette
+- Typography-focused design
 
-## Environment Variables
+## Current Status
 
-The app works without environment variables (using dummy data), but for full functionality, add these in Vercel:
+This is a frontend demonstration with mock data. Key features implemented:
 
-### Required for Database Features:
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-```
+✅ Fashion recommendation grid
+✅ Product detail panels
+✅ Similar item discovery
+✅ Fashion agent UI (simulated)
+✅ Notification system
+✅ AI stylist chat integration
+✅ Responsive design
+✅ Authentication flow
 
-### Required for Mining Agent:
-```bash
-FIRECRAWL_API_KEY=your_firecrawl_api_key
-OPENAI_API_KEY=your_openai_api_key
-```
+## Roadmap
 
-### Optional:
-```bash
-NEWS_API_KEY=your_news_api_key
-NEWS_API_HOST=your_news_api_host
-```
+Future enhancements could include:
 
-To add these in Vercel:
-1. Go to your project settings
-2. Navigate to "Environment Variables"
-3. Add each variable with its value
-4. Redeploy your application
+- Real fashion API integration
+- Actual wardrobe upload and analysis
+- Advanced filtering and search
+- Outfit builder
+- Social sharing features
+- Wishlist and collections
+- Purchase history tracking
+- Sustainability scoring
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+This project is currently in development. Contributions, issues, and feature requests are welcome.
 
 ## License
 
-This project is proprietary and confidential.
+Private and confidential.
 
 ## Contact
 
-For questions or support, please contact the Lithos team. 
+For questions or support, reach out to hello@threaded.app
+
+---
+
+Built with ❤️ for fashion enthusiasts

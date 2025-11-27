@@ -2,15 +2,12 @@
 
 import * as React from "react"
 import {
-  IconDashboard,
+  IconSparkles,
   IconHelp,
-  IconNews,
   IconSearch,
   IconSettings,
-  IconWorld,
-  IconBuilding,
-  IconSphere,
-  IconNetwork,
+  IconBell,
+  IconShoppingBag,
 } from "@tabler/icons-react"
 
 import { NavMain } from '@/components/nav-main'
@@ -27,38 +24,25 @@ import {
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/lib/auth-context'
 import { useUserData } from '@/lib/hooks/use-user-data'
+import { useCart } from '@/lib/cart-context'
+import { Badge } from '@/components/ui/badge'
 
 const data = {
   navMain: [
     {
-      title: "Dashboard",
+      title: "Recommendations",
       url: "/",
-      icon: IconDashboard,
+      icon: IconSparkles,
     },
     {
-      title: "Global Projects",
-      url: "/global-projects",
-      icon: IconWorld,
+      title: "Cart",
+      url: "/cart",
+      icon: IconShoppingBag,
     },
     {
-      title: "Project Globe",
-      url: "/globe",
-      icon: IconSphere,
-    },
-    {
-      title: "Global Companies",
-      url: "/companies",
-      icon: IconBuilding,
-    },
-    {
-      title: "Supply Chain",
-      url: "/supply-chain",
-      icon: IconNetwork,
-    },
-    {
-      title: "News & Announcements",
-      url: "/news",
-      icon: IconNews,
+      title: "Notifications",
+      url: "/notifications",
+      icon: IconBell,
     },
   ],
   navSecondary: [
@@ -100,8 +84,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#" className="flex items-center gap-2">
-                <img src="/favicon.avif" alt="Lithos" className="h-6 w-6 rounded" />
-                <span className="text-base font-semibold">Lithos</span>
+                <img src="/favicon.avif" alt="Threaded" className="h-6 w-6 rounded" />
+                <span className="text-base font-semibold">Threaded</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

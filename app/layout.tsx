@@ -5,11 +5,12 @@ import './globals.css'
 import { ChatProvider } from '@/lib/chat-context'
 import { GlobalChatProvider } from '@/lib/global-chat-context'
 import { AuthProvider } from '@/lib/auth-context'
+import { CartProvider } from '@/lib/cart-context'
 // Removed Toaster - using inline feedback instead
 
 export const metadata: Metadata = {
-  title: 'Lithos',
-  description: 'AI-powered critical minerals intelligence platform',
+  title: 'Threaded',
+  description: 'AI-powered personal fashion stylist',
   generator: 'v0.dev',
   icons: {
     icon: [
@@ -41,11 +42,13 @@ html {
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`} suppressHydrationWarning>
         <AuthProvider>
-          <ChatProvider>
-            <GlobalChatProvider>
-              {children}
-            </GlobalChatProvider>
-          </ChatProvider>
+          <CartProvider>
+            <ChatProvider>
+              <GlobalChatProvider>
+                {children}
+              </GlobalChatProvider>
+            </ChatProvider>
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

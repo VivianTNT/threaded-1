@@ -39,128 +39,107 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
 
-async function getProjectContext(): Promise<string> {
+async function getProductContext(): Promise<string> {
   try {
-    console.log('[getProjectContext] Fetching projects directly from Supabase...');
+    console.log('[getProductContext] Fetching products directly from Supabase...');
 
-    // Query Supabase directly instead of making HTTP request
-    const { data: projects, error, count } = await supabaseServer
-      .from('projects')
+    // Query Supabase directly for fashion products
+    const { data: products, error, count } = await supabaseServer
+      .from('products')
       .select('*', { count: 'exact' })
-      .order('npv', { ascending: false, nullsFirst: false })
-      .limit(200); // Get up to 200 projects
+      .order('created_at', { ascending: false })
+      .limit(100); // Get up to 100 products for context
 
     if (error) {
-      console.error('[getProjectContext] Supabase error:', error);
+      console.error('[getProductContext] Supabase error:', error);
       return '';
     }
 
-    console.log('[getProjectContext] Fetched', projects?.length, 'projects');
+    console.log('[getProductContext] Fetched', products?.length, 'products');
 
-    if (!projects || projects.length === 0) {
-      console.log('[getProjectContext] No projects found');
+    if (!products || products.length === 0) {
+      console.log('[getProductContext] No products found');
       return '';
     }
 
-    // Prepare data object similar to API response
+    // Prepare fashion product data
     const data = {
-      projects: projects.map(p => ({
+      products: products.map(p => ({
         id: p.id,
-        name: p.name,
-        company_id: p.company_id,
-        stage: p.stage || 'N/A',
-        location: p.location || 'N/A',
-        commodities: Array.isArray(p.commodities) ? p.commodities.join(', ') : 'N/A',
-        status: p.status || 'N/A',
-        npv: p.npv !== null && p.npv !== undefined ? `$${p.npv}M` : 'N/A',
-        irr: p.irr !== null && p.irr !== undefined ? `${p.irr}%` : 'N/A',
-        capex: p.capex !== null && p.capex !== undefined ? `$${p.capex}M` : 'N/A',
-        description: p.description
+        name: p.name || 'Fashion Item',
+        brand: p.brand_name || p.domain?.replace('.com', '').replace('www.', '') || 'Unknown',
+        category: p.category || 'N/A',
+        price: p.price !== null && p.price > 0 ? `$${p.price}` : 'N/A',
+        description: p.description || '',
+        url: p.product_url || '',
+        image: p.image_url || ''
       })),
       stats: {
-        totalProjects: count || projects.length,
-        avgIRR: projects.filter(p => p.irr !== null).reduce((sum, p) => sum + (p.irr || 0), 0) / projects.filter(p => p.irr !== null).length || 0,
-        totalNPV: projects.reduce((sum, p) => sum + (p.npv || 0), 0),
-        byStage: projects.reduce((acc: any, p) => {
-          const stage = p.stage || 'Unknown';
-          acc[stage] = (acc[stage] || 0) + 1;
+        totalProducts: count || products.length,
+        avgPrice: products.filter(p => p.price !== null && p.price > 0).reduce((sum, p) => sum + (p.price || 0), 0) / products.filter(p => p.price !== null && p.price > 0).length || 0,
+        byBrand: products.reduce((acc: any, p) => {
+          const brand = p.brand_name || p.domain || 'Unknown';
+          acc[brand] = (acc[brand] || 0) + 1;
           return acc;
         }, {}),
-        byCommodity: projects.reduce((acc: any, p) => {
-          const commodities = p.commodities || [];
-          commodities.forEach((commodity: string) => {
-            acc[commodity] = (acc[commodity] || 0) + 1;
-          });
+        byCategory: products.reduce((acc: any, p) => {
+          const category = p.category || 'Uncategorized';
+          acc[category] = (acc[category] || 0) + 1;
           return acc;
         }, {})
       }
     };
-    
-    if (!data.projects || data.projects.length === 0) {
+
+    if (!data.products || data.products.length === 0) {
       return '';
     }
-    
-    // Create a concise summary of projects
-    let context = `\n\n### Current Mining Projects Database (${data.stats.totalProjects} projects):\n\n`;
-    
+
+    // Create a concise summary of products
+    let context = `\n\n### Current Fashion Products Database (${data.stats.totalProducts} products):\n\n`;
+
     // Add summary stats
     context += `**Overview:**\n`;
-    context += `- Total Projects: ${data.stats.totalProjects}\n`;
-    context += `- Average IRR: ${data.stats.avgIRR?.toFixed(1)}%\n`;
-    context += `- Total NPV: $${(data.stats.totalNPV / 1000).toFixed(1)}B\n\n`;
-    
-    // Add stage distribution
-    context += `**By Stage:**\n`;
-    Object.entries(data.stats.byStage || {}).forEach(([stage, count]) => {
-      context += `- ${stage}: ${count}\n`;
-    });
-    context += '\n';
-    
-    // Add commodity distribution
-    context += `**By Commodity:**\n`;
-    Object.entries(data.stats.byCommodity || {}).forEach(([commodity, count]) => {
-      context += `- ${commodity}: ${count}\n`;
-    });
-    context += '\n';
-    
-    // Add top projects by NPV
-    const topProjects = data.projects
-      .filter((p: any) => p.npv !== 'N/A')
-      .sort((a: any, b: any) => {
-        const npvA = parseFloat(a.npv.replace('$', '').replace('M', ''));
-        const npvB = parseFloat(b.npv.replace('$', '').replace('M', ''));
-        return npvB - npvA;
-      })
-      .slice(0, 10);
+    context += `- Total Products: ${data.stats.totalProducts}\n`;
+    context += `- Average Price: $${data.stats.avgPrice?.toFixed(2)}\n\n`;
 
-    if (topProjects.length > 0) {
-      context += `**Top 10 Projects by NPV:**\n`;
-      topProjects.forEach((p: any, i: number) => {
-        context += `${i + 1}. ${p.name}: NPV ${p.npv}, IRR ${p.irr}, CAPEX ${p.capex}, Location: ${p.location}\n`;
+    // Add brand distribution (top 10)
+    context += `**Top Brands:**\n`;
+    Object.entries(data.stats.byBrand || {})
+      .sort((a: any, b: any) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([brand, count]) => {
+        context += `- ${brand}: ${count} items\n`;
       });
-      context += '\n';
-    }
+    context += '\n';
 
-    // Add comprehensive project catalog with all financial metrics
-    context += `**Complete Project Catalog (${data.projects.length} projects):**\n`;
-    context += 'When asked about specific projects, search this catalog for exact project names and their financial metrics.\n\n';
+    // Add category distribution
+    context += `**By Category:**\n`;
+    Object.entries(data.stats.byCategory || {}).forEach(([category, count]) => {
+      context += `- ${category}: ${count}\n`;
+    });
+    context += '\n';
 
-    data.projects.forEach((p: any) => {
-      const metrics = [];
-      if (p.npv !== 'N/A') metrics.push(`NPV: ${p.npv}`);
-      if (p.irr !== 'N/A') metrics.push(`IRR: ${p.irr}`);
-      if (p.capex !== 'N/A') metrics.push(`CAPEX: ${p.capex}`);
+    // Add comprehensive product catalog
+    context += `**Complete Product Catalog (${data.products.length} products):**\n`;
+    context += 'When asked about specific products, brands, or styles, search this catalog for exact matches.\n\n';
 
-      context += `• ${p.name} | ${p.location} | ${p.stage} | ${p.commodities}`;
-      if (metrics.length > 0) {
-        context += ` | ${metrics.join(', ')}`;
+    data.products.forEach((p: any) => {
+      const details = [];
+      if (p.name) details.push(p.name);
+      if (p.brand) details.push(`by ${p.brand}`);
+      if (p.category !== 'N/A') details.push(p.category);
+      if (p.price !== 'N/A') details.push(p.price);
+
+      context += `• ${details.join(' | ')}`;
+      if (p.description && p.description.length > 0) {
+        context += ` - ${p.description.substring(0, 100)}`;
       }
       context += '\n';
     });
 
     return context;
   } catch (error) {
-    console.error('Error getting project context:', error);
+    console.error('Error getting product context:', error);
     return '';
   }
 }
@@ -233,20 +212,20 @@ export async function POST(req: Request) {
     if (!systemMessageExists) {
       finalMessages.unshift({
         role: 'system',
-        content: `You are Lithos AI, an expert mining industry assistant with real-time capabilities. You specialize in:
+        content: `You are Threaded AI Stylist, an expert personal fashion assistant with real-time web search capabilities. You specialize in:
 
-- Mining project analysis and discovery
-- Commodity market trends and pricing
-- Technical mining reports and feasibility studies (NI 43-101, JORC, etc.)
-- Environmental and ESG considerations in mining
-- Geological and resource estimation
-- Mining finance and investment analysis
-- PDF document analysis and summarization
-- Real-time access to mining project database
+- Personal style recommendations and outfit curation
+- Fashion trends and seasonal collections
+- Brand knowledge across luxury, premium, and contemporary fashion
+- Sustainable and ethical fashion options
+- Styling advice for different occasions and body types
+- Color theory, fabric types, and garment care
+- PDF document analysis and product catalog browsing
+- Real-time access to fashion product database
 
-You have access to a comprehensive database of mining projects with detailed metrics including NPV, IRR, CAPEX, production rates, and ESG scores. When analyzing documents, you extract key information such as project details, resource estimates, financial metrics, and technical specifications.
+You have access to a comprehensive database of fashion products with detailed information including brands, categories, prices, and descriptions. When analyzing documents or product catalogs, you extract key information such as product details, brand information, pricing, and styling suggestions.
 
-Always provide data-driven insights and cite specific details from uploaded documents and the project database when available. Focus on accuracy and technical precision while remaining accessible.
+Always provide thoughtful, personalized advice that considers the user's style preferences, budget, and values. Be encouraging and help users feel confident in their fashion choices.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INVESTOR MEMO GENERATION RUBRIC
@@ -519,25 +498,25 @@ When users request an investor memo, generate comprehensive analysis following t
       
       finalMessages.push({
         role: 'system',
-        content: `Here are web search results related to mining and the user's query:\n\n${formattedResults}\n\nPlease use these search results to provide a comprehensive answer with current information about mining projects, commodity prices, technical reports, or industry news.`
+        content: `Here are web search results related to fashion and the user's query:\n\n${formattedResults}\n\nPlease use these search results to provide a comprehensive answer with current information about fashion trends, product recommendations, brand updates, styling tips, or industry news.`
       });
     }
     
-    // Add project database context with detailed instructions
-    const projectContext = await getProjectContext();
-    if (projectContext) {
+    // Add product database context with detailed instructions
+    const productContext = await getProductContext();
+    if (productContext) {
       finalMessages.push({
         role: 'system',
-        content: `MINING PROJECTS DATABASE CONTEXT:
-${projectContext}
+        content: `FASHION PRODUCTS DATABASE CONTEXT:
+${productContext}
 
-IMPORTANT: You have access to complete project data above including NPV, IRR, and CAPEX values for all projects listed.
-When users ask about specific projects or financial metrics:
-1. Search the project catalog above for the exact project name
-2. Extract the financial data (NPV, IRR, CAPEX) directly from the catalog
-3. Provide specific numeric values from the data
+IMPORTANT: You have access to complete product data above including brands, categories, prices, and descriptions for all products listed.
+When users ask about specific products, brands, or fashion items:
+1. Search the product catalog above for exact matches
+2. Extract product details (brand, price, category, description) directly from the catalog
+3. Provide specific information from the data
 
-Example: If asked "what is the NPV of Mountain Pass REE?", search for "Mountain Pass" in the catalog above and report the NPV value shown.`
+Example: If asked "What L.L.Bean products do you have?", search for "llbean" in the catalog above and list the matching products with their details.`
       });
     }
     

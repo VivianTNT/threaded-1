@@ -25,8 +25,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   // Load settings from localStorage on mount
   React.useEffect(() => {
-    const storedDarkMode = localStorage.getItem('lithos-dark-mode')
-    const storedSaveChats = localStorage.getItem('lithos-save-chats')
+    const storedDarkMode = localStorage.getItem('threaded-dark-mode')
+    const storedSaveChats = localStorage.getItem('threaded-save-chats')
 
     if (storedDarkMode !== null) {
       setDarkMode(storedDarkMode === 'true')
@@ -38,7 +38,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   const handleDarkModeChange = (checked: boolean) => {
     setDarkMode(checked)
-    localStorage.setItem('lithos-dark-mode', String(checked))
+    localStorage.setItem('threaded-dark-mode', String(checked))
 
     // Apply dark mode class to document
     if (checked) {
@@ -52,7 +52,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   const handleSaveChatsChange = (checked: boolean) => {
     setSaveChats(checked)
-    localStorage.setItem('lithos-save-chats', String(checked))
+    localStorage.setItem('threaded-save-chats', String(checked))
 
     toast.success(`Chat history ${checked ? 'will be saved' : 'will not be saved'}`)
   }
@@ -66,7 +66,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             Settings
           </DialogTitle>
           <DialogDescription>
-            Manage your Lithos preferences and account settings
+            Manage your Threaded preferences and account settings
           </DialogDescription>
         </DialogHeader>
 

@@ -22,12 +22,13 @@ import { useAuth } from "@/lib/auth-context"
 import { useRedirectIfAuthenticated } from "@/lib/auth-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle, Info } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [step, setStep] = useState<"account" | "company">("account")
+  const [step, setStep] = useState<"account" | "preferences">("account")
   const router = useRouter()
   const { signUp } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -35,19 +36,18 @@ export function SignupForm({
     type: "success" | "error" | "info" | null;
     message: string;
   }>({ type: null, message: "" })
-  
+
   // Form data state
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    brand: "", // This will store company name but map to brand field in DB
-    desc: "",
-    category: "",
-    website: "",
-    founded: ""
+    stylePreferences: [] as string[],
+    budgetRange: "",
+    favoriteColors: "",
+    bio: ""
   })
-  
+
   // Redirect if already authenticated
   useRedirectIfAuthenticated()
 
@@ -55,15 +55,24 @@ export function SignupForm({
     const { id, value } = e.target
     setFormData(prev => ({ ...prev, [id]: value }))
   }
-  
+
   const handleSelectChange = (value: string) => {
-    setFormData(prev => ({ ...prev, category: value }))
+    setFormData(prev => ({ ...prev, budgetRange: value }))
+  }
+
+  const toggleStylePreference = (style: string) => {
+    setFormData(prev => ({
+      ...prev,
+      stylePreferences: prev.stylePreferences.includes(style)
+        ? prev.stylePreferences.filter(s => s !== style)
+        : [...prev.stylePreferences, style]
+    }))
   }
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
     setAlert({ type: null, message: "" })
-    
+
     // Validate account information
     if (!formData.name || !formData.email || !formData.password) {
       setAlert({
@@ -72,7 +81,7 @@ export function SignupForm({
       })
       return
     }
-    
+
     // Password validation
     if (formData.password.length < 8) {
       setAlert({
@@ -81,47 +90,37 @@ export function SignupForm({
       })
       return
     }
-    
-    setStep("company")
+
+    setStep("preferences")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setAlert({ type: null, message: "" })
-    
-    // Validate company information
-    if (!formData.brand || !formData.desc || !formData.category) {
-      setAlert({
-        type: "error",
-        message: "Please fill in all required fields"
-      })
-      return
-    }
-    
+
     setIsSubmitting(true)
-    
+
     try {
       const { error, success, message } = await signUp(
-        formData.email, 
+        formData.email,
         formData.password,
         {
           name: formData.name,
-          brand: formData.brand, // Company name stored as brand
-          desc: formData.desc,
-          category: formData.category,
-          website: formData.website,
-          founded: formData.founded
+          stylePreferences: formData.stylePreferences,
+          budgetRange: formData.budgetRange,
+          favoriteColors: formData.favoriteColors,
+          bio: formData.bio
         }
       )
-      
+
       if (success) {
         setAlert({
           type: "success",
-          message: message || "A confirmation link has been sent to your email"
+          message: message || "Account created! Redirecting to onboarding..."
         })
         setTimeout(() => {
-          router.push("/login")
-        }, 3000)
+          router.push("/onboarding")
+        }, 2000)
       } else {
         if (message === 'Email already taken') {
           setAlert({
@@ -150,18 +149,29 @@ export function SignupForm({
     }
   }
 
+  const styleOptions = [
+    "Minimalist",
+    "Classic",
+    "Casual",
+    "Business Casual",
+    "Athleisure",
+    "Bohemian",
+    "Streetwear",
+    "Elegant"
+  ]
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Create your account</CardTitle>
           <CardDescription>
-            Join our platform for critical minerals intelligence
+            Join Threaded to discover your perfect style
           </CardDescription>
         </CardHeader>
         <CardContent>
           {alert.type && (
-            <Alert 
+            <Alert
               variant={alert.type === "success" ? "default" : alert.type === "error" ? "destructive" : "default"}
               className="mb-6"
             >
@@ -173,8 +183,8 @@ export function SignupForm({
           )}
           <Tabs value={step} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="account" disabled={step === "company"}>Account</TabsTrigger>
-              <TabsTrigger value="company" disabled={step === "account"}>Company Details</TabsTrigger>
+              <TabsTrigger value="account" disabled={step === "preferences"}>Account</TabsTrigger>
+              <TabsTrigger value="preferences" disabled={step === "account"}>Style Preferences</TabsTrigger>
             </TabsList>
             <TabsContent value="account">
               <form onSubmit={handleNextStep}>
@@ -183,7 +193,7 @@ export function SignupForm({
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      placeholder="John Smith"
+                      placeholder="Your Name"
                       required
                       value={formData.name}
                       onChange={handleChange}
@@ -194,7 +204,7 @@ export function SignupForm({
                     <Input
                       id="email"
                       type="email"
-                      placeholder="john@yourcompany.com"
+                      placeholder="you@example.com"
                       required
                       value={formData.email}
                       onChange={handleChange}
@@ -219,68 +229,60 @@ export function SignupForm({
                 </div>
               </form>
             </TabsContent>
-            <TabsContent value="company">
+            <TabsContent value="preferences">
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-6">
-                  <div className="grid gap-2">
-                    <Label htmlFor="brand">Company Name</Label>
-                    <Input
-                      id="brand"
-                      placeholder="Your Company Name"
-                      required
-                      value={formData.brand}
-                      onChange={handleChange}
-                    />
+                  <div className="grid gap-3">
+                    <Label>Style Preferences (select all that apply)</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {styleOptions.map((style) => (
+                        <div key={style} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={style}
+                            checked={formData.stylePreferences.includes(style)}
+                            onCheckedChange={() => toggleStylePreference(style)}
+                          />
+                          <label
+                            htmlFor={style}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {style}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="desc">Company Description</Label>
-                    <Textarea
-                      id="desc"
-                      placeholder="Tell us about your company and what makes it unique..."
-                      className="min-h-24"
-                      required
-                      value={formData.desc}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Primary Industry</Label>
-                    <Select required value={formData.category} onValueChange={handleSelectChange}>
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Select industry" />
+                    <Label htmlFor="budgetRange">Budget Range (optional)</Label>
+                    <Select value={formData.budgetRange} onValueChange={handleSelectChange}>
+                      <SelectTrigger id="budgetRange">
+                        <SelectValue placeholder="Select budget range" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="mining">Mining</SelectItem>
-                        <SelectItem value="battery">Battery Manufacturing</SelectItem>
-                        <SelectItem value="automotive">Automotive</SelectItem>
-                        <SelectItem value="energy">Energy Storage</SelectItem>
-                        <SelectItem value="electronics">Electronics</SelectItem>
-                        <SelectItem value="recycling">Recycling</SelectItem>
-                        <SelectItem value="consulting">Consulting</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="budget">Budget Friendly ($0-$50)</SelectItem>
+                        <SelectItem value="midrange">Mid-Range ($50-$200)</SelectItem>
+                        <SelectItem value="premium">Premium ($200-$500)</SelectItem>
+                        <SelectItem value="luxury">Luxury ($500+)</SelectItem>
+                        <SelectItem value="mixed">Mixed Range</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="website">Website</Label>
+                    <Label htmlFor="favoriteColors">Favorite Colors (optional)</Label>
                     <Input
-                      id="website"
-                      type="url"
-                      placeholder="https://yourcompany.com"
-                      required
-                      value={formData.website}
+                      id="favoriteColors"
+                      placeholder="e.g., Black, Navy, Beige, Emerald"
+                      value={formData.favoriteColors}
                       onChange={handleChange}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="founded">Founded Year</Label>
-                    <Input
-                      id="founded"
-                      type="number"
-                      placeholder="2025"
-                      min="1900"
-                      max="2025"
-                      value={formData.founded}
+                    <Label htmlFor="bio">About You (optional)</Label>
+                    <Textarea
+                      id="bio"
+                      placeholder="Tell us about your style goals, what occasions you dress for, or anything that helps us understand your fashion needs..."
+                      className="min-h-24"
+                      value={formData.bio}
                       onChange={handleChange}
                     />
                   </div>

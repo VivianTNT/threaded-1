@@ -19,20 +19,6 @@ npm run start
 
 # Run linting
 npm run lint
-
-# Test scrapers
-npm run test:scraper
-npm run test:scraper:mock
-npm run test:scraper:real
-
-# Populate projects
-npm run populate:projects
-
-# Demo scraper pipeline
-npm run demo:scraper
-
-# Test mining agent v2
-npm run test:agent-v2
 ```
 
 ## Architecture Overview
@@ -45,7 +31,6 @@ npm run test:agent-v2
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
 - **AI Integration**: OpenAI API
-- **Web Scraping**: Firecrawl API
 - **Fonts**: Geist Sans and Geist Mono
 - **Charts**: Recharts
 - **Tables**: TanStack Table
@@ -53,26 +38,23 @@ npm run test:agent-v2
 ### Project Structure
 
 ```
-lithos/
+threaded/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes
 │   │   ├── auth/         # Authentication endpoints
-│   │   ├── chat/         # Chat AI endpoints
-│   │   ├── mining-agent/ # Mining data collection
-│   │   └── web-search/   # Web search integration
-│   ├── dashboard/         # Main dashboard (requires auth)
+│   │   └── chat/         # Chat AI endpoints
+│   ├── notifications/     # Notifications page
 │   ├── login/            # Login page
 │   └── signup/           # Signup page
 ├── components/            # React components
-│   ├── project-screener/ # Mining project table
-│   ├── project-detail-panel/ # Project analysis views
+│   ├── fashion-recommendations/ # Fashion product grid and detail views
 │   ├── ui/              # Reusable UI components
-│   └── mining-agent-*.tsx # Mining agent UI components
+│   └── fashion-agent-button.tsx # Fashion agent UI component
 ├── lib/                   # Core utilities
-│   ├── mining-agent/     # Mining data orchestration
-│   │   ├── scrapers/     # Various data source scrapers
-│   │   └── *.ts         # Processing and extraction
 │   ├── types/            # TypeScript definitions
+│   │   └── fashion-product.ts # Fashion product types
+│   ├── data/             # Mock data
+│   │   └── mock-fashion-products.ts # Fashion product data
 │   ├── auth-context.tsx  # Authentication provider
 │   ├── chat-context.tsx  # Chat UI state
 │   └── global-chat-context.tsx # Global chat functionality
@@ -84,20 +66,20 @@ lithos/
 #### Context Providers
 The app uses nested React Context providers in `app/layout.tsx`:
 1. `AuthProvider` - Manages authentication state
-2. `ChatProvider` - Controls chat UI state  
+2. `ChatProvider` - Controls chat UI state
 3. `GlobalChatProvider` - Handles AI chat functionality
 
 #### Database Access
 - Uses Supabase client from `lib/supabase.ts`
 - Service role client available in `lib/supabase-service.ts` for admin operations
-- Tables include: projects, chat_history, agent_runs, companies, usr, brands
+- Tables include: users, fashion_products, notifications, wardrobe_items, chat_history
 
-#### Mining Agent System
-The mining agent (`lib/mining-agent/`) is a sophisticated data collection system:
-- **Orchestrator**: Coordinates multiple scrapers and document processing
-- **Scrapers**: Different scrapers for ASX, SEDAR, EDGAR, LSE, and general mining news
-- **Document Processor**: Extracts structured project data from documents
-- **Progress Tracking**: Real-time progress updates during scraping operations
+#### Fashion Recommendation System
+The app provides personalized fashion recommendations:
+- **Product Grid**: Displays curated fashion items with images, prices, and recommendations
+- **Detail Panel**: Shows comprehensive product information, similar items, and purchase options
+- **Fashion Agent**: Simulated AI that "discovers" new items matching user preferences
+- **Notifications**: Real-time alerts for new recommendations, price drops, and restocks
 
 #### API Route Pattern
 All API routes follow consistent patterns:
@@ -118,10 +100,7 @@ Required environment variables:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-FIRECRAWL_API_KEY=
 OPENAI_API_KEY=
-NEWS_API_KEY= (optional)
-NEWS_API_HOST= (optional)
 ```
 
 ### Important Notes
@@ -141,16 +120,33 @@ The project uses `@/*` as a path alias for the root directory, configured in `ts
 - Use Tailwind CSS classes exclusively
 - Utilize the `cn()` utility from `lib/utils.ts` for conditional classes
 - Theme customization via CSS variables in `app/globals.css`
+- Minimalist, classy design aesthetic inspired by premium fashion brands
 
 #### Authentication Flow
 1. Users authenticate via `/login` or `/signup`
-2. Protected routes (like `/dashboard`) redirect to login if unauthenticated
+2. Protected routes redirect to login if unauthenticated
 3. Auth state managed globally via `AuthProvider`
 
-#### Mining Project Data
-The app focuses on critical minerals mining projects with:
-- Comprehensive project screening table
-- Detailed project analysis views
-- Sensitivity analysis for financial metrics
-- AI-powered insights and recommendations
-- Real-time data collection from multiple sources
+#### Fashion Product Data
+The app focuses on personalized fashion recommendations with:
+- Product grid with images, prices, and brand information
+- Detailed product views with materials, sizes, colors
+- Similar item recommendations
+- AI-powered styling suggestions
+- Mock data from real luxury and contemporary fashion brands
+
+#### User Workflow
+1. **Sign up** - Create account
+2. **Upload wardrobe** (optional) - Add photos of existing clothes
+3. **Browse recommendations** - View AI-curated fashion items
+4. **Explore products** - Click to see details, similar items
+5. **Take action** - Add to cart, save, view on brand website
+6. **Run fashion agent** - Discover new items matching preferences
+7. **Get notifications** - Alerts for new recommendations and updates
+
+#### Mock Data
+The app currently uses synthetic mock data for demonstration:
+- Fashion products with real brand names (Loro Piana, Max Mara, The Row, Toteme, COS, etc.)
+- Product images from Unsplash
+- Realistic prices and product descriptions
+- Mock notifications and agent runs

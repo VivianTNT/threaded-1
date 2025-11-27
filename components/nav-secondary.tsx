@@ -50,11 +50,11 @@ export function NavSecondary({
 
     switch (title) {
       case "Search":
-        // Open Lithos AI assistant
+        // Open Threaded AI stylist
         setInput("") // Clear any previous input
         toggleChat() // Open the chat sidebar
-        toast.success('Lithos AI Assistant opened', {
-          description: 'Ask me anything about mining projects, companies, or news'
+        toast.success('Threaded AI Stylist opened', {
+          description: 'Ask me anything about fashion, styling, or products'
         })
         break
 

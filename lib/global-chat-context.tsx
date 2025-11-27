@@ -75,43 +75,41 @@ export function GlobalChatProvider({ children }: { children: React.ReactNode }) 
   // State for app context (needed before getInitialMessages)
   const [appContext, setAppContext] = useState<AppContext | null>(null)
 
-  // Initialize with system message for mining
+  // Initialize with system message for fashion
   const getInitialMessages = (): Message[] => {
-    let systemContent = `You are Lithos AI, an expert mining industry assistant with real-time web search capabilities. You specialize in:
+    let systemContent = `You are Threaded AI Stylist, an expert personal fashion assistant with real-time web search capabilities. You specialize in:
 
-- Mining project analysis and discovery
-- Commodity market trends and pricing
-- Technical mining reports and feasibility studies (NI 43-101, JORC, etc.)
-- Environmental and ESG considerations in mining
-- Geological and resource estimation
-- Mining finance and investment analysis
+- Personal style recommendations and outfit curation
+- Fashion trends and seasonal collections
+- Brand knowledge across luxury, premium, and contemporary fashion
+- Sustainable and ethical fashion options
+- Styling advice for different occasions and body types
+- Color theory, fabric types, and garment care
 
-You can search the web for current mining news, analyze technical documents and spreadsheets, generate mining-related visualizations, and provide up-to-date industry insights. When web search is enabled, you have access to current information from mining news sites, technical report databases (SEDAR, EDGAR), commodity exchanges, and industry sources.
+You can search the web for current fashion trends, analyze user wardrobes, suggest outfit combinations, and provide personalized shopping recommendations. When web search is enabled, you have access to current information from fashion retailers, style magazines, trend forecasters, and sustainable fashion sources.
 
-Always provide data-driven insights and cite sources when available. Focus on accuracy and technical precision while remaining accessible.`;
+Always provide thoughtful, personalized advice that considers the user's style preferences, budget, and values. Be encouraging and help users feel confident in their fashion choices.`;
 
     // Add app context if available
     if (appContext) {
-      systemContent += `\n\n**Current Lithos Database Context** (use when relevant to user queries):
-- Total Projects: ${appContext.totalProjects}
-- Mining Companies: ${appContext.totalCompanies}
-- Technical Filings: ${appContext.totalFilings}
-- M&A/JV Deals: ${appContext.totalDeals}
+      systemContent += `\n\n**Current Threaded User Context** (use when relevant to user queries):
+- Saved Products: ${appContext.totalProjects} items
+- Favorite Brands: ${appContext.totalCompanies} brands
+- Wardrobe Items: ${appContext.totalFilings} pieces
+- Style Activities: ${appContext.totalDeals} interactions
 - Last Updated: ${new Date(appContext.lastUpdated).toLocaleString()}
 
-Sample projects in database: ${appContext.projects.slice(0, 5).map(p => {
+Sample saved products: ${appContext.projects.slice(0, 5).map(p => {
   const details = [];
-  if (p.name) details.push(`Name: ${p.name}`);
-  if (p.location) details.push(`Location: ${p.location}`);
-  if (p.stage) details.push(`Stage: ${p.stage}`);
-  if (p.commodities && p.commodities.length > 0) details.push(`Commodities: ${p.commodities.join(', ')}`);
-  if (p.npv !== null && p.npv !== undefined) details.push(`NPV: $${p.npv}M`);
-  if (p.irr !== null && p.irr !== undefined) details.push(`IRR: ${p.irr}%`);
-  if (p.capex !== null && p.capex !== undefined) details.push(`CAPEX: $${p.capex}M`);
+  if (p.name) details.push(`Item: ${p.name}`);
+  if (p.brand_name) details.push(`Brand: ${p.brand_name}`);
+  if (p.category) details.push(`Category: ${p.category}`);
+  if (p.price !== null && p.price !== undefined && p.price > 0) details.push(`Price: $${p.price}`);
+  if (p.domain) details.push(`From: ${p.domain}`);
   return `[${details.join(' | ')}]`;
 }).join('\n')}.
 
-When users ask about specific projects or financial metrics (NPV, IRR, CAPEX), you have access to this data in the context above.
+When users ask about their saved items, wardrobe pieces, or style preferences, you have access to this data in the context above.
 
 Note: This context is available for reference but should only be mentioned when directly relevant to the user's query.`;
     }
@@ -125,7 +123,7 @@ Note: This context is available for reference but should only be mentioned when 
       {
         id: "2",
         role: "assistant",
-        content: "Hello! I'm Lithos AI, your mining industry assistant. I can help you with:\n\n• **Project Analysis** - Analyze mining projects, feasibility studies, and technical reports\n• **Market Intelligence** - Track commodity prices, market trends, and industry news\n• **Document Analysis** - Process technical reports, spreadsheets, and geological data\n• **Web Search** - Find the latest mining news and developments\n• **Visualizations** - Generate charts, maps, and project comparisons\n\nHow can I assist you today?"
+        content: "Hello! I'm your Threaded AI Stylist, your personal fashion assistant. I can help you with:\n\n• **Style Recommendations** - Suggest outfits and pieces that match your personal style\n• **Fashion Trends** - Keep you updated on current and upcoming fashion trends\n• **Outfit Curation** - Help you build complete looks for any occasion\n• **Brand Discovery** - Find brands that align with your taste and values\n• **Styling Advice** - Answer questions about fit, color, and styling\n• **Smart Shopping** - Guide you to the perfect pieces for your wardrobe\n\nHow can I help you look and feel your best today?"
       }
     ];
   };
@@ -165,7 +163,7 @@ Note: This context is available for reference but should only be mentioned when 
     // Add to history
     const newChat: Chat = {
       id: newChatId,
-      title: "New Mining Analysis",
+      title: "New Style Conversation",
       messages: newMessages,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -199,7 +197,7 @@ Note: This context is available for reference but should only be mentioned when 
       if (chat.id === currentChatId) {
         // Generate title from first user message if needed
         let title = chat.title
-        if (title === "New Mining Analysis" && messages.length > 2) {
+        if (title === "New Style Conversation" && messages.length > 2) {
           const firstUserMessage = messages.find(m => m.role === "user")
           if (firstUserMessage) {
             title = firstUserMessage.content.substring(0, 50) + (firstUserMessage.content.length > 50 ? "..." : "")
@@ -226,7 +224,7 @@ Note: This context is available for reference but should only be mentioned when 
             .upsert({
               id: currentChatId,
               user_id: currentUser.id,
-              title: messages.length > 2 ? messages[2]?.content?.substring(0, 50) + "..." : "New Mining Analysis",
+              title: messages.length > 2 ? messages[2]?.content?.substring(0, 50) + "..." : "New Style Conversation",
               messages: messages,
               updated_at: new Date().toISOString()
             })
@@ -294,29 +292,30 @@ Note: This context is available for reference but should only be mentioned when 
   useEffect(() => {
     const fetchAppContext = async () => {
       try {
-        // Fetch projects with key fields (using correct column names from database)
-        const { data: projects, count: projectCount } = await supabase
-          .from('projects')
-          .select('id, name, company_id, location, stage, commodities, status, npv, irr, capex, resource_estimate, reserve_estimate, ownership_percentage, description, created_at, updated_at', { count: 'exact' })
-          .limit(100) // Get top 100 projects for context
+        // Fetch products from Penn database with key fashion fields
+        const { data: products, count: productCount } = await supabase
+          .from('products')
+          .select('id, name, brand_name, category, price, description, image_url, product_url, domain, created_at', { count: 'exact' })
+          .limit(100) // Get top 100 products for context
 
-        // Fetch unique companies from companies table
-        const { data: companies, count: companiesCount } = await supabase
-          .from('companies')
-          .select('id, name', { count: 'exact' })
+        // Fetch unique brands from products
+        const { data: brandsData } = await supabase
+          .from('products')
+          .select('brand_name')
+          .not('brand_name', 'is', null)
 
-        const uniqueCompanies = companies?.length || companiesCount || 0
+        const uniqueBrands = new Set(brandsData?.map(b => b.brand_name).filter(Boolean)).size
 
-        // Mock filing and deal counts based on projects
-        const filingsCount = (projectCount || 0) * 3
-        const dealsCount = Math.floor((projectCount || 0) * 0.15)
+        // Use product count for wardrobe items and activities
+        const wardrobeCount = Math.floor((productCount || 0) * 0.3) // Assume 30% of products are in wardrobe
+        const activitiesCount = Math.floor((productCount || 0) * 0.5) // User interactions
 
         const newContext = {
-          projects: projects || [],
-          totalProjects: projectCount || 0,
-          totalCompanies: uniqueCompanies,
-          totalFilings: filingsCount,
-          totalDeals: dealsCount,
+          projects: products || [],
+          totalProjects: productCount || 0,
+          totalCompanies: uniqueBrands,
+          totalFilings: wardrobeCount,
+          totalDeals: activitiesCount,
           lastUpdated: new Date().toISOString()
         }
 
@@ -326,39 +325,37 @@ Note: This context is available for reference but should only be mentioned when 
         setMessages(prev => {
           if (prev.length > 0 && prev[0].role === 'system') {
             const updatedMessages = [...prev]
-            let systemContent = `You are Lithos AI, an expert mining industry assistant with real-time web search capabilities. You specialize in:
+            let systemContent = `You are Threaded AI Stylist, an expert personal fashion assistant with real-time web search capabilities. You specialize in:
 
-- Mining project analysis and discovery
-- Commodity market trends and pricing
-- Technical mining reports and feasibility studies (NI 43-101, JORC, etc.)
-- Environmental and ESG considerations in mining
-- Geological and resource estimation
-- Mining finance and investment analysis
+- Personal style recommendations and outfit curation
+- Fashion trends and seasonal collections
+- Brand knowledge across luxury, premium, and contemporary fashion
+- Sustainable and ethical fashion options
+- Styling advice for different occasions and body types
+- Color theory, fabric types, and garment care
 
-You can search the web for current mining news, analyze technical documents and spreadsheets, generate mining-related visualizations, and provide up-to-date industry insights. When web search is enabled, you have access to current information from mining news sites, technical report databases (SEDAR, EDGAR), commodity exchanges, and industry sources.
+You can search the web for current fashion trends, analyze user wardrobes, suggest outfit combinations, and provide personalized shopping recommendations. When web search is enabled, you have access to current information from fashion retailers, style magazines, trend forecasters, and sustainable fashion sources.
 
-Always provide data-driven insights and cite sources when available. Focus on accuracy and technical precision while remaining accessible.
+Always provide thoughtful, personalized advice that considers the user's style preferences, budget, and values. Be encouraging and help users feel confident in their fashion choices.
 
-**Current Lithos Database Context** (use when relevant to user queries):
-- Total Projects: ${newContext.totalProjects}
-- Mining Companies: ${newContext.totalCompanies}
-- Technical Filings: ${newContext.totalFilings}
-- M&A/JV Deals: ${newContext.totalDeals}
+**Current Threaded User Context** (use when relevant to user queries):
+- Saved Products: ${newContext.totalProjects} items
+- Favorite Brands: ${newContext.totalCompanies} brands
+- Wardrobe Items: ${newContext.totalFilings} pieces
+- Style Activities: ${newContext.totalDeals} interactions
 - Last Updated: ${new Date(newContext.lastUpdated).toLocaleString()}
 
-Sample projects in database: ${newContext.projects.slice(0, 5).map((p: any) => {
+Sample saved products: ${newContext.projects.slice(0, 5).map((p: any) => {
   const details = [];
-  if (p.name) details.push(`Name: ${p.name}`);
-  if (p.location) details.push(`Location: ${p.location}`);
-  if (p.stage) details.push(`Stage: ${p.stage}`);
-  if (p.commodities && p.commodities.length > 0) details.push(`Commodities: ${p.commodities.join(', ')}`);
-  if (p.npv !== null && p.npv !== undefined) details.push(`NPV: $${p.npv}M`);
-  if (p.irr !== null && p.irr !== undefined) details.push(`IRR: ${p.irr}%`);
-  if (p.capex !== null && p.capex !== undefined) details.push(`CAPEX: $${p.capex}M`);
+  if (p.name) details.push(`Item: ${p.name}`);
+  if (p.brand_name) details.push(`Brand: ${p.brand_name}`);
+  if (p.category) details.push(`Category: ${p.category}`);
+  if (p.price !== null && p.price !== undefined && p.price > 0) details.push(`Price: $${p.price}`);
+  if (p.domain) details.push(`From: ${p.domain}`);
   return `[${details.join(' | ')}]`;
 }).join('\n')}.
 
-When users ask about specific projects or financial metrics (NPV, IRR, CAPEX), you have access to this data in the context above.
+When users ask about their saved items, wardrobe pieces, or style preferences, you have access to this data in the context above.
 
 Note: This context is available for reference but should only be mentioned when directly relevant to the user's query.`;
 

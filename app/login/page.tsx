@@ -6,8 +6,8 @@ export default function LoginPage() {
       <div className="flex w-full max-w-sm flex-col gap-6">
         <a href="/" className="flex items-center gap-2 self-center">
           <div className="flex items-center gap-2">
-            <img src="/favicon.avif" alt="Lithos" className="h-6 w-6 rounded" />
-            <span className="text-base font-semibold">Lithos</span>
+            <img src="/favicon.avif" alt="Threaded" className="h-6 w-6 rounded" />
+            <span className="text-base font-semibold">Threaded</span>
           </div>
         </a>
         <LoginForm />

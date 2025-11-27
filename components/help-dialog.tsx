@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BookOpen, Mail, AlertTriangle, Globe, Building2, Newspaper, MessageSquare, ArrowRight, Layers } from "lucide-react"
+import { BookOpen, Mail, Sparkles, Upload, ShoppingBag, MessageSquare, ArrowRight, Bell } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   Dialog,
@@ -22,7 +22,7 @@ interface HelpDialogProps {
 
 export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = React.useState<"guide" | "risk">("guide")
+  const [activeTab, setActiveTab] = React.useState<"guide" | "features">("guide")
 
   const handleNavigate = (path: string) => {
     onOpenChange(false)
@@ -38,7 +38,7 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
             Help & Documentation
           </DialogTitle>
           <DialogDescription>
-            Quick start guide and risk scoring methodology
+            Quick start guide and feature overview
           </DialogDescription>
         </DialogHeader>
 
@@ -54,21 +54,21 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
             Quick Start
           </button>
           <button
-            onClick={() => setActiveTab("risk")}
+            onClick={() => setActiveTab("features")}
             className={`pb-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === "risk"
+              activeTab === "features"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            Risk Scoring
+            Features
           </button>
         </div>
 
         <Tabs value={activeTab} className="w-full flex-1 flex flex-col overflow-hidden">
           <TabsList className="hidden">
             <TabsTrigger value="guide">Quick Start</TabsTrigger>
-            <TabsTrigger value="risk">Risk Scoring</TabsTrigger>
+            <TabsTrigger value="features">Features</TabsTrigger>
           </TabsList>
 
           <TabsContent value="guide" className="flex-1 flex flex-col overflow-hidden">
@@ -76,64 +76,52 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Your Workflow</h3>
                 <div className="space-y-2">
+                <div className="w-full text-left p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium text-sm">1. Upload Your Wardrobe (Optional)</div>
+                      <div className="text-xs text-muted-foreground">Add photos of your clothes to get personalized recommendations</div>
+                    </div>
+                  </div>
+                </div>
+
                 <button
-                  onClick={() => handleNavigate('/global-projects')}
+                  onClick={() => handleNavigate('/')}
                   className="w-full text-left p-3 border rounded-lg hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Globe className="h-5 w-5 text-muted-foreground" />
+                      <Sparkles className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <div className="font-medium text-sm">1. Browse Projects</div>
-                        <div className="text-xs text-muted-foreground">Search, filter, and compare mining projects globally</div>
+                        <div className="font-medium text-sm">2. Browse Recommendations</div>
+                        <div className="text-xs text-muted-foreground">Discover curated fashion items tailored to your style</div>
                       </div>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </button>
 
-                <button
-                  onClick={() => handleNavigate('/globe')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-muted transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Layers className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="font-medium text-sm">2. Visualize on Globe</div>
-                        <div className="text-xs text-muted-foreground">Explore projects on interactive 3D globe</div>
-                      </div>
+                <div className="w-full text-left p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium text-sm">3. Explore & Shop</div>
+                      <div className="text-xs text-muted-foreground">View details, find similar items, add to cart</div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                </button>
+                </div>
 
                 <button
-                  onClick={() => handleNavigate('/companies')}
+                  onClick={() => handleNavigate('/notifications')}
                   className="w-full text-left p-3 border rounded-lg hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Building2 className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="font-medium text-sm">3. Analyze Companies</div>
-                        <div className="text-xs text-muted-foreground">Review company portfolios and ownership stakes</div>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleNavigate('/news')}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-muted transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Newspaper className="h-5 w-5 text-muted-foreground" />
+                      <Bell className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <div className="font-medium text-sm">4. Stay Updated</div>
-                        <div className="text-xs text-muted-foreground">Track news and announcements in real-time</div>
+                        <div className="text-xs text-muted-foreground">Get notified about new finds and price drops</div>
                       </div>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -143,7 +131,6 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
                 <button
                   onClick={() => {
                     onOpenChange(false)
-                    // Open chat in fullscreen mode
                     const searchButton = document.querySelector('[data-search-trigger]') as HTMLElement
                     if (searchButton) {
                       searchButton.click()
@@ -155,8 +142,8 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
                     <div className="flex items-center gap-3">
                       <MessageSquare className="h-5 w-5 text-primary" />
                       <div>
-                        <div className="font-medium text-sm">5. Ask AI Assistant</div>
-                        <div className="text-xs text-muted-foreground">Press Cmd/Ctrl+K or click Search button</div>
+                        <div className="font-medium text-sm">5. Ask AI Stylist</div>
+                        <div className="text-xs text-muted-foreground">Press Cmd/Ctrl+K for fashion advice</div>
                       </div>
                     </div>
                     <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -170,10 +157,10 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Key Features</h3>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>• <strong>Watchlist:</strong> Star projects to track changes and updates</p>
-                  <p>• <strong>Compare:</strong> Select 2+ projects to view side-by-side analysis</p>
-                  <p>• <strong>Export:</strong> Download data in CSV, Excel, or JSON formats</p>
-                  <p>• <strong>Visualize:</strong> Explore projects on the 3D globe view</p>
+                  <p>• <strong>Fashion Agent:</strong> AI finds new items matching your style preferences</p>
+                  <p>• <strong>Similar Items:</strong> Discover alternatives for products you love</p>
+                  <p>• <strong>Smart Filters:</strong> Search by brand, style, price, and more</p>
+                  <p>• <strong>Save & Like:</strong> Curate your personal wishlist effortlessly</p>
                 </div>
               </div>
             </div>
@@ -183,7 +170,7 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.location.href = 'mailto:info@lithos-ai.com?subject=Help Request'}
+                onClick={() => window.location.href = 'mailto:hello@threaded.app?subject=Help Request'}
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Contact Support
@@ -191,37 +178,37 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
             </div>
           </TabsContent>
 
-          <TabsContent value="risk" className="flex-1 flex flex-col overflow-hidden">
+          <TabsContent value="features" className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               <div className="flex items-start gap-3 p-3 border rounded-lg">
-                <Badge className="bg-green-100 text-green-800 shrink-0">Low</Badge>
+                <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="text-sm space-y-1">
-                  <p className="font-medium">0-25 Points</p>
-                  <p className="text-muted-foreground text-xs">Tier 1 jurisdiction • Advanced stage • IRR {'>'}20% • Proven reserves</p>
+                  <p className="font-medium">AI Fashion Agent</p>
+                  <p className="text-muted-foreground text-xs">Our AI agent continuously scans premium retailers to find items that match your style preferences, wardrobe, and budget. Get notified when new recommendations are available.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 p-3 border rounded-lg">
-                <Badge className="bg-yellow-100 text-yellow-800 shrink-0">Medium</Badge>
+                <Upload className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="text-sm space-y-1">
-                  <p className="font-medium">26-50 Points</p>
-                  <p className="text-muted-foreground text-xs">Tier 2 jurisdiction • PEA/Pre-Feas • IRR 15-20% • Indicated resources</p>
+                  <p className="font-medium">Wardrobe Upload</p>
+                  <p className="text-muted-foreground text-xs">Upload photos of your existing clothes to help our AI understand your style better. The more items you add, the more personalized your recommendations become.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 p-3 border rounded-lg">
-                <Badge className="bg-orange-100 text-orange-800 shrink-0">High</Badge>
+                <ShoppingBag className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="text-sm space-y-1">
-                  <p className="font-medium">51-75 Points</p>
-                  <p className="text-muted-foreground text-xs">Tier 3 jurisdiction • Exploration • IRR 10-15% • Inferred resources</p>
+                  <p className="font-medium">Smart Shopping</p>
+                  <p className="text-muted-foreground text-xs">Find similar items, compare prices, save favorites, and add to cart. One-click access to purchase directly from brand websites.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 p-3 border rounded-lg">
-                <Badge className="bg-red-100 text-red-800 shrink-0">Very High</Badge>
+                <Bell className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="text-sm space-y-1">
-                  <p className="font-medium">76-100 Points</p>
-                  <p className="text-muted-foreground text-xs">High-risk jurisdiction • Conceptual • IRR {'<'}10% • Limited resources</p>
+                  <p className="font-medium">Real-Time Notifications</p>
+                  <p className="text-muted-foreground text-xs">Get instant alerts for new recommendations, price drops, and when items you've saved come back in stock.</p>
                 </div>
               </div>
 
@@ -229,16 +216,19 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
 
               <div className="bg-muted/50 p-3 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <p className="text-sm font-medium">Risk Factors</p>
+                  <MessageSquare className="h-4 w-4" />
+                  <p className="text-sm font-medium">AI Stylist Chat</p>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <p>• Geopolitical stability</p>
-                  <p>• Financial viability</p>
-                  <p>• Regulatory environment</p>
-                  <p>• Resource confidence</p>
-                  <p>• Project stage</p>
-                  <p>• ESG considerations</p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Ask questions about any item, get styling advice, or request specific types of clothing. Our AI stylist is here to help with:</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                    <p>• Outfit combinations</p>
+                    <p>• Sizing guidance</p>
+                    <p>• Style recommendations</p>
+                    <p>• Occasion-based looks</p>
+                    <p>• Trend insights</p>
+                    <p>• Sustainability info</p>
+                  </div>
                 </div>
               </div>
             </div>
