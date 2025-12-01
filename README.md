@@ -6,32 +6,32 @@ Threaded is a B2C web application that provides personalized fashion recommendat
 
 ## Features
 
-### 🎨 Personalized Recommendations
+### Personalized Recommendations
 - AI-curated fashion items from luxury and contemporary brands
 - Smart matching based on your style preferences
 - Daily updates with new discoveries
 
-### 👗 Wardrobe Integration
+### Wardrobe Integration
 - Upload photos of your existing clothes (optional)
 - Get recommendations that complement what you already own
 - Build a digital closet for better styling suggestions
 
-### 🤖 Fashion Agent
+### Fashion Agent
 - Automated discovery of new items matching your style
 - Real-time scanning of premium retailers
 - Progress tracking and notifications
 
-### 🔔 Smart Notifications
+### Smart Notifications
 - Alerts for new recommendations
 - Price drop notifications
 - Back-in-stock alerts for saved items
 
-### 💬 AI Stylist Chat
+### AI Stylist Chat
 - Ask questions about any product
 - Get styling advice and outfit suggestions
 - Receive personalized fashion guidance
 
-### 🛍️ Seamless Shopping
+### Seamless Shopping
 - View detailed product information
 - Find similar items instantly
 - One-click access to brand websites
@@ -134,14 +134,14 @@ Threaded embraces a **minimalist, classy aesthetic** inspired by premium fashion
 
 This is a frontend demonstration with mock data. Key features implemented:
 
-✅ Fashion recommendation grid
-✅ Product detail panels
-✅ Similar item discovery
-✅ Fashion agent UI (simulated)
-✅ Notification system
-✅ AI stylist chat integration
-✅ Responsive design
-✅ Authentication flow
+Fashion recommendation grid
+Product detail panels
+Similar item discovery
+Fashion agent UI (simulated)
+Notification system
+AI stylist chat integration
+Responsive design
+Authentication flow
 
 ## Roadmap
 
@@ -163,11 +163,3 @@ This project is currently in development. Contributions, issues, and feature req
 ## License
 
 Private and confidential.
-
-## Contact
-
-For questions or support, reach out to hello@threaded.app
-
----
-
-Built with ❤️ for fashion enthusiasts
