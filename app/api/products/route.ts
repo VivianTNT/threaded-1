@@ -5,10 +5,6 @@ import { transformPennProduct, PennProduct } from '@/lib/penn-products'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-console.log('🔍 API Route Environment Check:');
-console.log('SUPABASE_URL:', supabaseUrl);
-console.log('SUPABASE_KEY:', supabaseKey?.substring(0, 20) + '...');
-
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function GET(request: Request) {
