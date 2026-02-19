@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +24,22 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle, Info } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 
+const SIGNUP_SAMPLE_SIZE = 16
+const SIGNUP_MIN_LIKES = 3
+const SIGNUP_TOP_K = 12
+
+type OnboardingProductCard = {
+  id: string
+  name: string
+  brand: string
+  image_url: string
+  price: number | null
+  product_url: string | null
+  category: string | null
+  description: string | null
+  similarity?: number
+}
+
 export function SignupForm({
   className,
   ...props
@@ -36,6 +52,14 @@ export function SignupForm({
     type: "success" | "error" | "info" | null;
     message: string;
   }>({ type: null, message: "" })
+  const [sampleProducts, setSampleProducts] = useState<OnboardingProductCard[]>([])
+  const [likedProductIds, setLikedProductIds] = useState<string[]>([])
+  const [likedProducts, setLikedProducts] = useState<OnboardingProductCard[]>([])
+  const [recommendedProducts, setRecommendedProducts] = useState<OnboardingProductCard[]>([])
+  const [recommendedProductIds, setRecommendedProductIds] = useState<string[]>([])
+  const [isLoadingSample, setIsLoadingSample] = useState(false)
+  const [isGeneratingRecs, setIsGeneratingRecs] = useState(false)
+  const [hasGeneratedRecs, setHasGeneratedRecs] = useState(false)
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -50,6 +74,11 @@ export function SignupForm({
 
   // Redirect if already authenticated
   useRedirectIfAuthenticated()
+
+  useEffect(() => {
+    if (step !== "preferences" || sampleProducts.length > 0) return
+    void loadSignupSample()
+  }, [step, sampleProducts.length])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
@@ -94,6 +123,87 @@ export function SignupForm({
     setStep("preferences")
   }
 
+  const loadSignupSample = async () => {
+    setIsLoadingSample(true)
+    try {
+      const response = await fetch(`/api/signup/image-recommendations?sampleSize=${SIGNUP_SAMPLE_SIZE}`)
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to load products for signup sample")
+      }
+      setSampleProducts(Array.isArray(data.products) ? data.products : [])
+      setLikedProductIds([])
+      setLikedProducts([])
+      setRecommendedProducts([])
+      setRecommendedProductIds([])
+      setHasGeneratedRecs(false)
+    } catch (error: any) {
+      setAlert({
+        type: "error",
+        message: error?.message || "Could not load signup sample products"
+      })
+    } finally {
+      setIsLoadingSample(false)
+    }
+  }
+
+  const toggleLikedProduct = (productId: string) => {
+    setLikedProductIds((prev) => {
+      const next = prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+
+      if (hasGeneratedRecs) {
+        setHasGeneratedRecs(false)
+        setLikedProducts([])
+        setRecommendedProducts([])
+        setRecommendedProductIds([])
+      }
+
+      return next
+    })
+  }
+
+  const generateImageRecommendations = async () => {
+    if (likedProductIds.length < SIGNUP_MIN_LIKES) {
+      setAlert({
+        type: "info",
+        message: `Select at least ${SIGNUP_MIN_LIKES} products you like to generate recommendations`
+      })
+      return
+    }
+
+    setIsGeneratingRecs(true)
+    setAlert({ type: null, message: "" })
+    try {
+      const response = await fetch('/api/signup/image-recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          likedProductIds,
+          shownProductIds: sampleProducts.map((p) => p.id),
+          topK: SIGNUP_TOP_K
+        })
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to generate recommendations")
+      }
+
+      setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
+      setRecommendedProducts(Array.isArray(data.recommendations) ? data.recommendations : [])
+      setRecommendedProductIds(Array.isArray(data.recommendedProductIds) ? data.recommendedProductIds : [])
+      setHasGeneratedRecs(true)
+    } catch (error: any) {
+      setAlert({
+        type: "error",
+        message: error?.message || "Could not generate recommendations"
+      })
+    } finally {
+      setIsGeneratingRecs(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setAlert({ type: null, message: "" })
@@ -109,7 +219,10 @@ export function SignupForm({
           stylePreferences: formData.stylePreferences,
           budgetRange: formData.budgetRange,
           favoriteColors: formData.favoriteColors,
-          bio: formData.bio
+          bio: formData.bio,
+          likedProductIds,
+          shownProductIds: sampleProducts.map((p) => p.id),
+          recommendedProductIds
         }
       )
 
@@ -232,6 +345,143 @@ export function SignupForm({
             <TabsContent value="preferences">
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-6">
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label>Pick products you like (image-based)</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadSignupSample()}
+                        disabled={isLoadingSample}
+                      >
+                        {isLoadingSample ? "Loading..." : "Refresh Sample"}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Select at least {SIGNUP_MIN_LIKES}. We will average image embeddings from your liked items.
+                    </p>
+
+                    {isLoadingSample ? (
+                      <div className="text-sm text-muted-foreground py-4">Loading product images...</div>
+                    ) : sampleProducts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-4">No sample products found.</div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {sampleProducts.map((product) => {
+                          const isLiked = likedProductIds.includes(product.id)
+                          return (
+                            <button
+                              key={product.id}
+                              type="button"
+                              onClick={() => toggleLikedProduct(product.id)}
+                              className={cn(
+                                "text-left rounded-lg border overflow-hidden transition",
+                                isLiked ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              <div className="aspect-[3/4] bg-muted">
+                                {product.image_url ? (
+                                  <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
+                                    No image
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-2">
+                                <p className="text-xs font-medium line-clamp-2">{product.name}</p>
+                                <p className="text-xs text-muted-foreground">{product.brand}</p>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Selected: {likedProductIds.length}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={generateImageRecommendations}
+                        disabled={isGeneratingRecs || likedProductIds.length < SIGNUP_MIN_LIKES}
+                      >
+                        {isGeneratingRecs ? "Generating..." : "Generate Recommendations"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {hasGeneratedRecs && likedProducts.length > 0 && (
+                    <div className="grid gap-3">
+                      <Label>Already liked</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {likedProducts.map((product) => (
+                          <div key={product.id} className="rounded-lg border overflow-hidden">
+                            <div className="aspect-[3/4] bg-muted">
+                              {product.image_url ? (
+                                <img
+                                  src={product.image_url}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
+                                  No image
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-2">
+                              <p className="text-xs font-medium line-clamp-2">{product.name}</p>
+                              <p className="text-xs text-muted-foreground">{product.brand}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {hasGeneratedRecs && (
+                    <div className="grid gap-3">
+                      <Label>Recommended for you</Label>
+                      {recommendedProducts.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          No recommendations found yet. Try selecting different likes.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {recommendedProducts.map((product) => (
+                            <div key={product.id} className="rounded-lg border overflow-hidden">
+                              <div className="aspect-[3/4] bg-muted">
+                                {product.image_url ? (
+                                  <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
+                                    No image
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-2">
+                                <p className="text-xs font-medium line-clamp-2">{product.name}</p>
+                                <p className="text-xs text-muted-foreground">{product.brand}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid gap-3">
                     <Label>Style Preferences (select all that apply)</Label>
                     <div className="grid grid-cols-2 gap-3">
