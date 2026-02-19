@@ -21,6 +21,8 @@ export default function Page() {
   const { user, isLoading } = useRequireAuth()
   const [selectedProduct, setSelectedProduct] = React.useState<FashionProduct | null>(null)
   const [products, setProducts] = React.useState<FashionProduct[]>([])
+  const [likedProducts, setLikedProducts] = React.useState<FashionProduct[]>([])
+  const [recommendationMode, setRecommendationMode] = React.useState<string>('latest_fallback')
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
 
@@ -29,11 +31,18 @@ export default function Page() {
     const fetchProducts = async () => {
       try {
         setIsLoadingProducts(true)
-        const response = await fetch('/api/products?limit=50')
+        const params = new URLSearchParams({
+          limit: '50',
+          userId: user?.id || '',
+          userEmail: user?.email || '',
+        })
+        const response = await fetch(`/api/products?${params.toString()}`)
         const data = await response.json()
 
         if (data.success) {
-          setProducts(data.products)
+          setProducts(Array.isArray(data.products) ? data.products : [])
+          setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
+          setRecommendationMode(typeof data.mode === 'string' ? data.mode : 'latest_fallback')
         } else {
           console.error('Failed to fetch products:', data.message)
         }
@@ -61,9 +70,13 @@ export default function Page() {
     return null // Will redirect to login
   }
 
+  const allProducts = React.useMemo(() => {
+    return [...likedProducts, ...products]
+  }, [likedProducts, products])
+
   // Get similar products based on category and style
   const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
-    return products
+    return allProducts
       .filter(p =>
         p.id !== product.id &&
         (p.category === product.category ||
@@ -100,11 +113,35 @@ export default function Page() {
                       Discover curated items tailored to your personal style. Our AI analyzes your preferences to find pieces you'll love.
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">12 New Items Today</Badge>
-                      <Badge variant="outline">95% Match Rate</Badge>
+                      {recommendationMode === 'personalized_image' ? (
+                        <>
+                          <Badge variant="secondary">Personalized by image likes</Badge>
+                          <Badge variant="outline">{products.length} recommendations</Badge>
+                        </>
+                      ) : (
+                        <>
+                          <Badge variant="secondary">Latest products</Badge>
+                          <Badge variant="outline">Set likes at signup for personalization</Badge>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {likedProducts.length > 0 && (
+                  <div className="px-4 lg:px-6">
+                    <div className="mb-3">
+                      <h2 className="text-xl font-semibold">Already Liked</h2>
+                      <p className="text-sm text-muted-foreground">
+                        {likedProducts.length} items you selected during signup
+                      </p>
+                    </div>
+                    <FashionGrid
+                      products={likedProducts}
+                      onProductClick={setSelectedProduct}
+                    />
+                  </div>
+                )}
 
                 {/* Filters Bar */}
                 <div className="px-4 lg:px-6">
@@ -112,7 +149,7 @@ export default function Page() {
                     <div>
                       <h2 className="text-xl font-semibold">Recommended for You</h2>
                       <p className="text-sm text-muted-foreground">
-                        {products.length} items • Updated 30 minutes ago
+                        {products.length} items
                       </p>
                     </div>
                     <Button

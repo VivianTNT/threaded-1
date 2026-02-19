@@ -26,7 +26,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 const SIGNUP_SAMPLE_SIZE = 16
 const SIGNUP_MIN_LIKES = 3
-const SIGNUP_TOP_K = 12
 
 type OnboardingProductCard = {
   id: string
@@ -54,12 +53,7 @@ export function SignupForm({
   }>({ type: null, message: "" })
   const [sampleProducts, setSampleProducts] = useState<OnboardingProductCard[]>([])
   const [likedProductIds, setLikedProductIds] = useState<string[]>([])
-  const [likedProducts, setLikedProducts] = useState<OnboardingProductCard[]>([])
-  const [recommendedProducts, setRecommendedProducts] = useState<OnboardingProductCard[]>([])
-  const [recommendedProductIds, setRecommendedProductIds] = useState<string[]>([])
   const [isLoadingSample, setIsLoadingSample] = useState(false)
-  const [isGeneratingRecs, setIsGeneratingRecs] = useState(false)
-  const [hasGeneratedRecs, setHasGeneratedRecs] = useState(false)
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -133,10 +127,6 @@ export function SignupForm({
       }
       setSampleProducts(Array.isArray(data.products) ? data.products : [])
       setLikedProductIds([])
-      setLikedProducts([])
-      setRecommendedProducts([])
-      setRecommendedProductIds([])
-      setHasGeneratedRecs(false)
     } catch (error: any) {
       setAlert({
         type: "error",
@@ -149,59 +139,10 @@ export function SignupForm({
 
   const toggleLikedProduct = (productId: string) => {
     setLikedProductIds((prev) => {
-      const next = prev.includes(productId)
+      return prev.includes(productId)
         ? prev.filter((id) => id !== productId)
         : [...prev, productId]
-
-      if (hasGeneratedRecs) {
-        setHasGeneratedRecs(false)
-        setLikedProducts([])
-        setRecommendedProducts([])
-        setRecommendedProductIds([])
-      }
-
-      return next
     })
-  }
-
-  const generateImageRecommendations = async () => {
-    if (likedProductIds.length < SIGNUP_MIN_LIKES) {
-      setAlert({
-        type: "info",
-        message: `Select at least ${SIGNUP_MIN_LIKES} products you like to generate recommendations`
-      })
-      return
-    }
-
-    setIsGeneratingRecs(true)
-    setAlert({ type: null, message: "" })
-    try {
-      const response = await fetch('/api/signup/image-recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          likedProductIds,
-          shownProductIds: sampleProducts.map((p) => p.id),
-          topK: SIGNUP_TOP_K
-        })
-      })
-      const data = await response.json()
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to generate recommendations")
-      }
-
-      setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
-      setRecommendedProducts(Array.isArray(data.recommendations) ? data.recommendations : [])
-      setRecommendedProductIds(Array.isArray(data.recommendedProductIds) ? data.recommendedProductIds : [])
-      setHasGeneratedRecs(true)
-    } catch (error: any) {
-      setAlert({
-        type: "error",
-        message: error?.message || "Could not generate recommendations"
-      })
-    } finally {
-      setIsGeneratingRecs(false)
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,8 +162,7 @@ export function SignupForm({
           favoriteColors: formData.favoriteColors,
           bio: formData.bio,
           likedProductIds,
-          shownProductIds: sampleProducts.map((p) => p.id),
-          recommendedProductIds
+          shownProductIds: sampleProducts.map((p) => p.id)
         }
       )
 
@@ -359,7 +299,7 @@ export function SignupForm({
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Select at least {SIGNUP_MIN_LIKES}. We will average image embeddings from your liked items.
+                      Select at least {SIGNUP_MIN_LIKES}. We will average image embeddings from your liked items and show recommendations on your home page.
                     </p>
 
                     {isLoadingSample ? (
@@ -406,81 +346,15 @@ export function SignupForm({
                       <p className="text-xs text-muted-foreground">
                         Selected: {likedProductIds.length}
                       </p>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={generateImageRecommendations}
-                        disabled={isGeneratingRecs || likedProductIds.length < SIGNUP_MIN_LIKES}
-                      >
-                        {isGeneratingRecs ? "Generating..." : "Generate Recommendations"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {hasGeneratedRecs && likedProducts.length > 0 && (
-                    <div className="grid gap-3">
-                      <Label>Already liked</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {likedProducts.map((product) => (
-                          <div key={product.id} className="rounded-lg border overflow-hidden">
-                            <div className="aspect-[3/4] bg-muted">
-                              {product.image_url ? (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
-                                  No image
-                                </div>
-                              )}
-                            </div>
-                            <div className="p-2">
-                              <p className="text-xs font-medium line-clamp-2">{product.name}</p>
-                              <p className="text-xs text-muted-foreground">{product.brand}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {hasGeneratedRecs && (
-                    <div className="grid gap-3">
-                      <Label>Recommended for you</Label>
-                      {recommendedProducts.length === 0 ? (
+                      {likedProductIds.length < SIGNUP_MIN_LIKES ? (
                         <p className="text-xs text-muted-foreground">
-                          No recommendations found yet. Try selecting different likes.
+                          Pick {SIGNUP_MIN_LIKES - likedProductIds.length} more for better personalization
                         </p>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {recommendedProducts.map((product) => (
-                            <div key={product.id} className="rounded-lg border overflow-hidden">
-                              <div className="aspect-[3/4] bg-muted">
-                                {product.image_url ? (
-                                  <img
-                                    src={product.image_url}
-                                    alt={product.name}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
-                                    No image
-                                  </div>
-                                )}
-                              </div>
-                              <div className="p-2">
-                                <p className="text-xs font-medium line-clamp-2">{product.name}</p>
-                                <p className="text-xs text-muted-foreground">{product.brand}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <p className="text-xs text-muted-foreground">Great, you are ready to continue</p>
                       )}
                     </div>
-                  )}
+                  </div>
 
                   <div className="grid gap-3">
                     <Label>Style Preferences (select all that apply)</Label>
