@@ -25,6 +25,9 @@ export default function Page() {
   const [recommendationMode, setRecommendationMode] = React.useState<string>('latest_fallback')
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
+  const allProducts = React.useMemo(() => {
+    return [...likedProducts, ...products]
+  }, [likedProducts, products])
 
   // Fetch products from Penn database
   React.useEffect(() => {
@@ -69,10 +72,6 @@ export default function Page() {
   if (!user) {
     return null // Will redirect to login
   }
-
-  const allProducts = React.useMemo(() => {
-    return [...likedProducts, ...products]
-  }, [likedProducts, products])
 
   // Get similar products based on category and style
   const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
