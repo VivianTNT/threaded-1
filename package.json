@@ -9,7 +9,8 @@
     "start": "next start",
     "migrate:db": "tsx scripts/run-database-migration.ts",
     "populate:companies": "tsx scripts/populate-mining-companies.ts",
-    "populate:projects": "tsx scripts/populate-mining-projects.ts"
+    "populate:projects": "tsx scripts/populate-mining-projects.ts",
+    "backfill:two-tower": "tsx scripts/backfill-two-tower-embeddings.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",

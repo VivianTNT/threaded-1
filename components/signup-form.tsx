@@ -299,7 +299,7 @@ export function SignupForm({
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Select at least {SIGNUP_MIN_LIKES}. We will average image embeddings from your liked items and show recommendations on your home page.
+                      Select at least {SIGNUP_MIN_LIKES}. We use these likes to build your personalized recommendation profile for the home page.
                     </p>
 
                     {isLoadingSample ? (

@@ -54,6 +54,7 @@ Threaded is a B2C web application that provides personalized fashion recommendat
 - Node.js 18+
 - npm or yarn
 - Supabase account
+- Python 3.10+ (for two-tower model inference service)
 
 ### Installation
 
@@ -68,17 +69,19 @@ cd threaded
 npm install
 ```
 
-3. Set up environment variables
-```bash
-cp .env.example .env.local
-```
-
-Add your environment variables:
+3. Set up environment variables in `.env.local`
+Create `.env.local` in the project root and add:
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 OPENAI_API_KEY=your_openai_api_key
+RECOMMENDER_MODEL_SERVICE_URL=http://127.0.0.1:8001
+RECOMMENDER_MODEL_TIMEOUT_MS=4000
+TWO_TOWER_MODEL_PATH=models/content_two_tower_hm.pt
+TWO_TOWER_DEVICE=cpu
+TWO_TOWER_MODEL_NAME=content_two_tower_hm
+TWO_TOWER_MODEL_VERSION=v1
 ```
 
 4. Run the development server
@@ -87,6 +90,41 @@ npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Two-Tower Model Integration
+
+The recommendation APIs now call a model inference service first and fall back to cosine similarity if the service is unavailable.
+
+### 1) Start the inference service
+
+```bash
+pip install -r scripts/requirements.txt
+python3 -m uvicorn two_tower_inference_service:app --app-dir scripts --host 0.0.0.0 --port 8001
+```
+
+Verify:
+
+```bash
+curl http://127.0.0.1:8001/health
+```
+
+### 2) Backfill product embeddings with item-tower outputs
+
+```bash
+npx tsx scripts/backfill-two-tower-embeddings.ts
+```
+
+Optional dry run:
+
+```bash
+DRY_RUN=1 npx tsx scripts/backfill-two-tower-embeddings.ts
+```
+
+Optional migration for embedding provenance columns:
+
+```sql
+-- File: supabase/migrations/101_add_product_embedding_model_metadata.sql
+```
 
 ## User Workflow
 

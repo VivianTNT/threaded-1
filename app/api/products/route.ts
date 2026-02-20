@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { transformPennProduct, PennProduct } from '@/lib/penn-products'
 import { cosineSimilarity, l2Normalize, parseVector } from '@/lib/recommendations/image-content'
+import { rankWithTwoTower } from '@/lib/recommendations/model-service'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -93,15 +94,27 @@ async function scoreProductsByUserImageEmbedding(
     throw new Error(`Failed to load product embeddings: ${error.message}`)
   }
 
-  const scored: ScoredId[] = []
+  const candidates: Array<{ id: string; embedding: number[] }> = []
   for (const row of (data || []) as ProductEmbeddingRow[]) {
     const id = String(row.product_id)
     if (excludedIds.has(id)) continue
 
     const vec = parseVector(row.image_embedding)
-    if (!vec || !vec.length || vec.length !== userVec.length) continue
-    const score = cosineSimilarity(userVec, l2Normalize(vec))
-    scored.push({ id, score })
+    if (!vec || !vec.length) continue
+    const normalizedVec = l2Normalize(vec)
+    candidates.push({ id, embedding: normalizedVec })
+  }
+
+  const modelRanked = await rankWithTwoTower(userVec, candidates)
+  if (modelRanked && modelRanked.length > 0) {
+    return modelRanked.map((row) => ({ id: row.id, score: row.score }))
+  }
+
+  const scored: ScoredId[] = []
+  for (const candidate of candidates) {
+    if (candidate.embedding.length !== userVec.length) continue
+    const score = cosineSimilarity(userVec, candidate.embedding)
+    scored.push({ id: candidate.id, score })
   }
 
   scored.sort((a, b) => b.score - a.score)
@@ -145,7 +158,7 @@ export async function GET(request: Request) {
             ...fp,
             recommendation_score: typeof sim === 'number' ? Math.round(sim * 100) : null,
             recommendation_reason:
-              typeof sim === 'number' ? 'Recommended based on image similarity to your liked picks.' : null,
+              typeof sim === 'number' ? 'Recommended from your liked picks using personalized ranking.' : null,
           }
         })
 

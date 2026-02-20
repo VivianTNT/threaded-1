@@ -6,6 +6,7 @@ import {
   parseVector,
   vectorToPg,
 } from '@/lib/recommendations/image-content'
+import { buildUserEmbeddingWithTwoTower } from '@/lib/recommendations/model-service'
 
 // Use service role key for server-side operations
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -13,7 +14,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 const MIN_LIKES_TO_STORE_EMBEDDING = 1
-const USER_IMAGE_EMBEDDING_DIM = 512
 
 async function computeUserImageEmbeddingAvgFromLikes(likedProductIds: string[]): Promise<number[] | null> {
   if (!likedProductIds.length) return null
@@ -37,6 +37,15 @@ async function computeUserImageEmbeddingAvgFromLikes(likedProductIds: string[]):
   }
 
   if (!vectors.length) return null
+
+  // Prefer the trained two-tower user encoder if available.
+  const sourceDim = vectors[0]?.length || 0
+  const modelEmbedding = await buildUserEmbeddingWithTwoTower(vectors)
+  if (modelEmbedding && modelEmbedding.length === sourceDim) {
+    return l2Normalize(modelEmbedding)
+  }
+
+  // Safe fallback to legacy average embedding when service/model is unavailable.
   return l2Normalize(meanVectors(vectors))
 }
 
@@ -120,7 +129,7 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString()
     }
 
-    if (userImageEmbeddingAvg && userImageEmbeddingAvg.length === USER_IMAGE_EMBEDDING_DIM) {
+    if (userImageEmbeddingAvg && userImageEmbeddingAvg.length > 0) {
       baseInsertPayload.user_image_embedding_avg = vectorToPg(userImageEmbeddingAvg)
     }
 

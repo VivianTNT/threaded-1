@@ -13,6 +13,7 @@ import {
   shuffleInPlace,
   toProductCard,
 } from '@/lib/recommendations/image-content'
+import { buildUserEmbeddingWithTwoTower, rankWithTwoTower } from '@/lib/recommendations/model-service'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -122,17 +123,31 @@ export async function POST(request: Request) {
       )
     }
 
-    const userVec = l2Normalize(meanVectors(likedVecs))
+    const sourceDim = likedVecs[0]?.length || 0
+    const modelUserVec = await buildUserEmbeddingWithTwoTower(likedVecs)
+    const userVec = l2Normalize(
+      modelUserVec && modelUserVec.length === sourceDim ? modelUserVec : meanVectors(likedVecs)
+    )
     const excluded = new Set<string>([...likedProductIds, ...shownProductIds])
 
-    const scored: Array<{ id: string; score: number }> = []
+    const candidates: Array<{ id: string; embedding: number[] }> = []
     for (const [productId, vec] of embeddingMap.entries()) {
       if (excluded.has(productId)) continue
-      if (vec.length !== userVec.length) continue
-      scored.push({ id: productId, score: cosineSimilarity(userVec, vec) })
+      candidates.push({ id: productId, embedding: vec })
     }
 
-    scored.sort((a, b) => b.score - a.score)
+    let scored: Array<{ id: string; score: number }> = []
+    const modelRanked = await rankWithTwoTower(userVec, candidates, topK)
+    if (modelRanked && modelRanked.length > 0) {
+      scored = modelRanked.map((row) => ({ id: row.id, score: row.score }))
+    } else {
+      for (const candidate of candidates) {
+        if (candidate.embedding.length !== userVec.length) continue
+        scored.push({ id: candidate.id, score: cosineSimilarity(userVec, candidate.embedding) })
+      }
+      scored.sort((a, b) => b.score - a.score)
+    }
+
     const topScored = scored.slice(0, topK)
 
     const likedProductsRaw = await loadProductsByIds(likedProductIds)
