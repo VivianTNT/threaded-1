@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Load environment variables from .env.local
+export NEXT_PUBLIC_SUPABASE_URL=https://owbuzpxttovfssoarzwc.supabase.co
+export NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93YnV6cHh0dG92ZnNzb2FyendjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDY5NTM4OSwiZXhwIjoyMDc2MjcxMzg5fQ.vPWHS-vb6OSH6AZ4SEd8VY3sQOo8CkicE8tG7B9pSaY
+export SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93YnV6cHh0dG92ZnNzb2FyendjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDY5NTM4OSwiZXhwIjoyMDc2MjcxMzg5fQ.vPWHS-vb6OSH6AZ4SEd8VY3sQOo8CkicE8tG7B9pSaY
+
+echo "🔧 Environment Variables Set:"
+echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+echo ""
+
+# Start dev server
+npm run dev
