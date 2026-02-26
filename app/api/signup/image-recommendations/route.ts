@@ -22,6 +22,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 const SIGNUP_SAMPLE_SIZE = DEFAULT_SIGNUP_SAMPLE_SIZE
 const SIGNUP_MIN_LIKES = DEFAULT_SIGNUP_MIN_LIKES
 const SIGNUP_TOP_K = DEFAULT_SIGNUP_TOP_K
+const PRODUCTS_QUERY_BATCH_SIZE = 200
 
 async function loadAllImageEmbeddings(): Promise<Map<string, number[]>> {
   const { data, error } = await supabase
@@ -46,15 +47,25 @@ async function loadAllImageEmbeddings(): Promise<Map<string, number[]>> {
 
 async function loadProductsByIds(ids: string[]): Promise<ProductRow[]> {
   if (!ids.length) return []
-  const { data, error } = await supabase
-    .from('products')
-    .select('id,name,brand_name,image_url,price,product_url,category,description')
-    .in('id', ids)
 
-  if (error) {
-    throw new Error(`Failed to load products: ${error.message}`)
+  const uniqueIds = Array.from(new Set(ids))
+  const rows: ProductRow[] = []
+
+  for (let i = 0; i < uniqueIds.length; i += PRODUCTS_QUERY_BATCH_SIZE) {
+    const chunk = uniqueIds.slice(i, i + PRODUCTS_QUERY_BATCH_SIZE)
+    const { data, error } = await supabase
+      .from('products')
+      .select('id,name,brand_name,image_url,price,product_url,category,description')
+      .in('id', chunk)
+
+    if (error) {
+      throw new Error(`Failed to load products (batch ${Math.floor(i / PRODUCTS_QUERY_BATCH_SIZE) + 1}): ${error.message}`)
+    }
+
+    rows.push(...((data || []) as ProductRow[]))
   }
-  return (data || []) as ProductRow[]
+
+  return rows
 }
 
 export async function GET(request: Request) {
