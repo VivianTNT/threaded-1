@@ -6,6 +6,7 @@ import { ChatProvider } from '@/lib/chat-context'
 import { GlobalChatProvider } from '@/lib/global-chat-context'
 import { AuthProvider } from '@/lib/auth-context'
 import { CartProvider } from '@/lib/cart-context'
+import { Toaster } from '@/components/ui/sonner'
 // Removed Toaster - using inline feedback instead
 
 export const metadata: Metadata = {
@@ -50,6 +51,7 @@ html {
             </ChatProvider>
           </CartProvider>
         </AuthProvider>
+        <Toaster />
       </body>
     </html>
   )
