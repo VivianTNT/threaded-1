@@ -1,0 +1,737 @@
+"use client"
+
+import * as React from "react"
+import {
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table"
+import { ArrowUpDown, ChevronDown, Eye, Plus, Search, Bookmark, BookmarkCheck } from "lucide-react"
+import { ContextMenuChat } from "@/components/ui/context-menu-chat"
+import { LinksPopover } from "@/components/ui/links-popover"
+import { useRouter } from "next/navigation"
+
+// Helper function to format large dollar amounts
+function formatDollarAmount(value: number): string {
+  if (value >= 1000) {
+    return `$${Math.round(value / 1000)}B`;
+  }
+  return `$${Math.round(value)}M`;
+}
+
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { MiningProject, RiskLevel } from "@/lib/types/mining-project"
+import { useProjects } from "@/lib/hooks/use-projects"
+import { ProjectDetailPanel } from "@/components/project-detail-panel"
+import { Skeleton } from "@/components/ui/skeleton"
+import { MiningAgentV2Button } from "@/components/mining-agent-v2-button"
+import { useState, useEffect } from "react"
+import { Loader2 } from "lucide-react"
+import { ExportDropdown, ExportFormat } from "@/components/ui/export-dropdown"
+import { exportProjects } from "@/lib/export-utils"
+import { toast } from "sonner"
+import { Toaster } from "@/components/ui/toaster"
+import { supabase } from "@/lib/supabase/client"
+import { BulkActionsToolbar } from "./bulk-actions-toolbar"
+
+function getRiskBadgeColor(risk: RiskLevel) {
+  switch (risk) {
+    case "Low":
+      return "bg-green-100 text-green-800 hover:bg-green-100"
+    case "Medium":
+      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+    case "High":
+      return "bg-orange-100 text-orange-800 hover:bg-orange-100"
+    case "Very High":
+      return "bg-red-100 text-red-800 hover:bg-red-100"
+  }
+}
+
+export function ProjectScreenerGlobal() {
+  const router = useRouter()
+  const { projects: initialData, loading, error, refetch } = useProjects()
+  const [data, setData] = useState<MiningProject[]>(initialData)
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState({})
+  const [globalFilter, setGlobalFilter] = useState("")
+
+  // Sync data with initialData when it changes
+  useEffect(() => {
+    setData(initialData)
+  }, [initialData])
+
+  // Project detail panel state
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false)
+  const [selectedProjects, setSelectedProjects] = useState<MiningProject[]>([])
+  const [detailPanelMode, setDetailPanelMode] = useState<"single" | "comparison">("single")
+  const [miningAgentRunning, setMiningAgentRunning] = useState(false)
+  const [miningAgentProgress, setMiningAgentProgress] = useState<string>("")
+  const [updatingWatchlist, setUpdatingWatchlist] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfTitle, setPdfTitle] = useState<string | null>(null)
+
+  // Listen for refresh events
+  useEffect(() => {
+    const handleRefreshProjects = () => {
+      refetch()
+    }
+
+    window.addEventListener('refreshProjects', handleRefreshProjects)
+
+    return () => {
+      window.removeEventListener('refreshProjects', handleRefreshProjects)
+    }
+  }, [refetch])
+
+  // Check for pre-selected project from sessionStorage
+  useEffect(() => {
+    const preselectId = sessionStorage.getItem('preselect-project')
+    if (preselectId && data.length > 0) {
+      // Find the index of the project in the data array
+      const projectIndex = data.findIndex(p => p.id === preselectId)
+      if (projectIndex !== -1) {
+        // Set the row selection using the index as the key
+        setRowSelection({ [projectIndex]: true })
+        // Clear the sessionStorage
+        sessionStorage.removeItem('preselect-project')
+      }
+    }
+  }, [data])
+
+  const handleProjectClick = (projectId: string) => {
+    // Navigate to the project detail page
+    router.push(`/projects/${projectId}`)
+  }
+
+  const handleMiningAgentProgress = (isRunning: boolean, message?: string) => {
+    setMiningAgentRunning(isRunning)
+    setMiningAgentProgress(message || "")
+  }
+
+  const handleProjectAnalysis = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows
+    if (selectedRows.length === 1) {
+      setSelectedProjects(selectedRows.map(row => row.original))
+      setDetailPanelMode("single")
+      setDetailPanelOpen(true)
+    }
+  }
+
+  const handleCompareProjects = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows
+    if (selectedRows.length >= 2) {
+      setSelectedProjects(selectedRows.map(row => row.original))
+      setDetailPanelMode("comparison")
+      setDetailPanelOpen(true)
+    }
+  }
+
+  const handleClearSelection = () => {
+    setRowSelection({})
+  }
+
+  // PDF click handler - opens project detail panel with PDF
+  const handlePdfClick = (url: string, title: string, project: MiningProject) => {
+    setPdfUrl(url)
+    setPdfTitle(title)
+    setSelectedProjects([project])
+    setDetailPanelMode("single")
+    setDetailPanelOpen(true)
+  }
+
+  // Watchlist handler
+  const handleToggleWatchlist = async (project: MiningProject) => {
+    try {
+      setUpdatingWatchlist(project.id)
+      const newWatchlistStatus = !project.watchlist
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('You must be logged in to use watchlist')
+        setUpdatingWatchlist(null)
+        return
+      }
+
+      // Optimistically update local state
+      const updatedData = data.map(p =>
+        p.id === project.id
+          ? { ...p, watchlist: newWatchlistStatus }
+          : p
+      )
+      setData(updatedData)
+
+      if (newWatchlistStatus) {
+        // Add to watchlist
+        const { error } = await supabase
+          .from('user_project_watchlist')
+          .insert({ user_id: user.id, project_id: project.id })
+
+        if (error) {
+          // Revert on error
+          const revertedData = data.map(p =>
+            p.id === project.id
+              ? { ...p, watchlist: false }
+              : p
+          )
+          setData(revertedData)
+          throw error
+        }
+      } else {
+        // Remove from watchlist
+        const { error } = await supabase
+          .from('user_project_watchlist')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('project_id', project.id)
+
+        if (error) {
+          // Revert on error
+          const revertedData = data.map(p =>
+            p.id === project.id
+              ? { ...p, watchlist: true }
+              : p
+          )
+          setData(revertedData)
+          throw error
+        }
+      }
+
+      toast.success(newWatchlistStatus ? 'Added to watchlist' : 'Removed from watchlist')
+    } catch (error: any) {
+      console.error('Error updating watchlist:', error)
+      toast.error(`Failed to update watchlist: ${error?.message || 'Unknown error'}`)
+    } finally {
+      setUpdatingWatchlist(null)
+    }
+  }
+
+  const handleExport = (format: ExportFormat) => {
+    const dataToExport = table.getFilteredRowModel().rows.map(row => row.original)
+    exportProjects(dataToExport, format, 'global-projects')
+    toast.success(`Exported ${dataToExport.length} projects as ${format.toUpperCase()}`)
+  }
+
+  const columns: ColumnDef<MiningProject>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      id: "watchlist",
+      header: "",
+      cell: ({ row }) => {
+        const project = row.original
+        const isUpdating = updatingWatchlist === project.id
+
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleToggleWatchlist(project)
+            }}
+            disabled={isUpdating}
+            className="hover:bg-transparent"
+          >
+            {isUpdating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : project.watchlist ? (
+              <BookmarkCheck className="h-4 w-4 fill-foreground" />
+            ) : (
+              <Bookmark className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+            )}
+          </Button>
+        )
+      },
+      size: 50,
+    },
+    {
+      accessorKey: "name",
+      header: "Project",
+      cell: ({ row }) => (
+        <ContextMenuChat
+          data={row.original}
+          dataType="project"
+          context={row.original.name}
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleProjectClick(row.original.id)
+                }}
+                className="text-sm font-semibold text-blue-600 hover:underline"
+              >
+                {row.original.name}
+              </a>
+              {row.original.is_private && (
+                <Badge variant="secondary" className="text-[10px] px-2 py-0 bg-purple-100 text-purple-700 border-purple-300">
+                  Private
+                </Badge>
+              )}
+            </div>
+            <div className="text-xs text-gray-500">
+              {row.original.company || 'N/A'}
+            </div>
+          </div>
+        </ContextMenuChat>
+      ),
+    },
+    {
+      accessorKey: "stage",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Stage
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <div className="text-sm text-center">{row.original.stage || 'Unknown'}</div>,
+    },
+    {
+      accessorKey: "commodities",
+      header: "Commodities",
+      cell: ({ row }) => {
+        const commodities = row.original.commodities || []
+        return (
+          <div className="flex flex-wrap gap-1">
+            {commodities.slice(0, 2).map((commodity, i) => (
+              <Badge key={i} variant="outline" className="font-normal text-xs">
+                {commodity}
+              </Badge>
+            ))}
+            {commodities.length > 2 && (
+              <Badge variant="outline" className="font-normal text-xs">
+                +{commodities.length - 2}
+              </Badge>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "location",
+      header: "Location",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="text-sm font-semibold">{row.original.location || 'Unknown'}</div>
+          <div className="flex items-center gap-2">
+            <Badge className={cn("text-xs", getRiskBadgeColor(row.original.riskLevel || 'Medium'))}>
+              {row.original.riskLevel || 'Medium'} Risk
+            </Badge>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "npv",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          NPV ($M)
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const npv = row.original.npv
+        return (
+          <div className="text-sm text-center font-medium">
+            {npv !== null && npv !== undefined ? formatDollarAmount(npv) : 'N/A'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "irr",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          IRR %
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const irr = row.original.irr
+        return (
+          <div className="text-sm text-center font-medium">
+            {irr !== null && irr !== undefined ? `${irr.toFixed(1)}%` : 'N/A'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "capex",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          CAPEX ($M)
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const capex = row.original.capex
+        return (
+          <div className="text-sm text-center font-medium">
+            {capex !== null && capex !== undefined ? formatDollarAmount(capex) : 'N/A'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "aisc",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          AISC ($/unit)
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const aisc = row.original.aisc
+        return (
+          <div className="text-sm text-center font-medium">
+            {aisc !== null && aisc !== undefined ? `$${aisc.toFixed(0)}` : 'N/A'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "latitude",
+      header: "Latitude",
+      cell: ({ row }) => {
+        const lat = row.original.latitude
+        return (
+          <div className="text-xs text-center text-muted-foreground">
+            {lat !== null && lat !== undefined ? lat.toFixed(4) : '-'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "longitude",
+      header: "Longitude",
+      cell: ({ row }) => {
+        const lng = row.original.longitude
+        return (
+          <div className="text-xs text-center text-muted-foreground">
+            {lng !== null && lng !== undefined ? lng.toFixed(4) : '-'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.original.status
+        const statusColors = {
+          "Active": "bg-green-100 text-green-800",
+          "On Hold": "bg-yellow-100 text-yellow-800",
+          "Closed": "bg-gray-100 text-gray-800",
+        }
+
+        return (
+          <Badge className={cn("w-fit", statusColors[status as keyof typeof statusColors] || "bg-gray-100 text-gray-800")}>
+            {status || 'Unknown'}
+          </Badge>
+        )
+      },
+    },
+    {
+      accessorKey: "urls",
+      header: "Links",
+      cell: ({ row }) => (
+        <LinksPopover
+          urls={row.original.urls || []}
+          onPdfClick={(url, title) => handlePdfClick(url, title, row.original)}
+        />
+      ),
+    },
+  ]
+
+  const table = useReactTable({
+    data,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: "includesString",
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      globalFilter,
+    },
+  })
+
+  const selectedRowsCount = Object.keys(rowSelection).length
+
+  if (loading) {
+    return (
+      <div className="w-full space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-full p-8 text-center">
+        <p className="text-muted-foreground">Failed to load projects: {error}</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="w-full space-y-4 relative">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold tracking-tight">Global Projects — {data.length} projects</h2>
+          <div className="flex items-center gap-2">
+            <MiningAgentV2Button
+              onComplete={refetch}
+              onProgressChange={handleMiningAgentProgress}
+            />
+            <ExportDropdown onExport={handleExport} />
+            <Button variant="outline" size="sm">
+              <Eye className="mr-2 h-4 w-4" />
+              View Data in Public Company Search
+            </Button>
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Project
+            </Button>
+          </div>
+        </div>
+
+        {/* Bulk Actions Toolbar */}
+        {selectedRowsCount > 0 && (
+          <BulkActionsToolbar
+            selectedCount={selectedRowsCount}
+            selectedProjects={table.getFilteredSelectedRowModel().rows.map(row => row.original)}
+            onClearSelection={handleClearSelection}
+            onProjectAnalysis={selectedRowsCount === 1 ? handleProjectAnalysis : undefined}
+            onCompare={selectedRowsCount >= 2 ? handleCompareProjects : undefined}
+          />
+        )}
+
+        <div className="flex items-center justify-between py-2">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search all columns..."
+                value={globalFilter ?? ""}
+                onChange={(event) => setGlobalFilter(event.target.value)}
+                className="pl-8 w-[300px]"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Columns <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                      >
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {selectedRowsCount} of {table.getFilteredRowModel().rows.length} row(s) selected.
+          </div>
+        </div>
+
+        <div className="rounded-lg border relative overflow-hidden">
+          {miningAgentRunning && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="text-sm text-muted-foreground font-medium">
+                  {miningAgentProgress || "Running mining agent..."}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <div className="flex-1 text-sm text-muted-foreground">
+            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+            {Math.min(
+              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+              table.getFilteredRowModel().rows.length
+            )}{" "}
+            of {table.getFilteredRowModel().rows.length} results
+          </div>
+          <div className="space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <ProjectDetailPanel
+        isOpen={detailPanelOpen}
+        onClose={() => setDetailPanelOpen(false)}
+        projects={selectedProjects}
+        mode={detailPanelMode}
+        onProjectSelect={(projectId) => {
+          console.log('🎯 onProjectSelect called with projectId:', projectId)
+          const project = data.find(p => String(p.id) === String(projectId))
+          console.log('🔍 Found project:', project?.name, project?.id)
+          if (project) {
+            console.log('✅ Setting selected project:', project.name)
+            setSelectedProjects([project])
+            setDetailPanelMode("single")
+          } else {
+            console.warn('⚠️ Project not found in data array')
+          }
+        }}
+        initialPdfUrl={pdfUrl}
+        initialPdfTitle={pdfTitle}
+      />
+      <Toaster />
+    </>
+  )
+}

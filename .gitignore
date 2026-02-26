@@ -1,0 +1,91 @@
+# Large data and model artifacts
+recsys/data/*
+recsys/artifacts/*
+recsys/images/*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Model checkpoints and artifacts (do not commit)
+*.pt
+*.joblib
+*.npy
+*.parquet
+
+# Large dataset directories
+recsys/data/hm_raw/
+recsys/data/rr_raw/
+recsys/data/hm_images/
+
+# Logs
+*.log
+
+# Environment
+.venv/
+.env
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# supabase
+supabase/.temp
+supabase/.branches
+
+# reference directories (contain exposed secrets)
+lithos_main/
+
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.python-version
+.venv/
+.venv*/
+venv/
+
+start-dev.sh
+.env.local
+env.local

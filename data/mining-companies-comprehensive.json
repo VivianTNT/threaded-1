@@ -1,0 +1,1202 @@
+[
+  {
+    "name": "Albemarle Corporation",
+    "ticker": "ALB",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.albemarle.com",
+    "description": "Global specialty chemicals company and leading lithium producer with operations in Chile, Australia, China and the US",
+    "market_cap": 10650000000,
+    "urls": ["https://www.albemarle.com", "https://finance.yahoo.com/quote/ALB"]
+  },
+  {
+    "name": "Sociedad Química y Minera de Chile S.A.",
+    "ticker": "SQM",
+    "exchange": "NYSE",
+    "country": "Chile",
+    "website": "https://www.sqm.com",
+    "description": "Major lithium producer mining from the Salar de Atacama region in northern Chile, also produces specialty fertilizers and iodine",
+    "market_cap": 12128000000,
+    "urls": ["https://www.sqm.com", "https://finance.yahoo.com/quote/SQM"]
+  },
+  {
+    "name": "Pilbara Minerals Limited",
+    "ticker": "PLS",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.pls.com",
+    "description": "Australia's largest lithium miner, owning the Pilgangoora Operation producing spodumene and tantalite concentrates",
+    "market_cap": 7430000000,
+    "urls": ["https://www.pls.com", "https://www.marketindex.com.au/asx/pls"]
+  },
+  {
+    "name": "Arcadium Lithium plc",
+    "ticker": "ALTM",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.arcadiumlithium.com",
+    "description": "Formed from merger of Allkem and Livent, global integrated lithium chemicals producer (acquired by Rio Tinto in 2025)",
+    "market_cap": 656000000,
+    "urls": ["https://www.arcadiumlithium.com", "https://finance.yahoo.com/quote/ALTM"]
+  },
+  {
+    "name": "Ganfeng Lithium Group Co., Ltd.",
+    "ticker": "002460",
+    "exchange": "SZSE",
+    "country": "China",
+    "website": "https://www.ganfenglithium.com",
+    "description": "World's third largest lithium compounds producer and largest lithium metals producer",
+    "market_cap": 12500000000,
+    "urls": ["https://www.ganfenglithium.com", "https://finance.yahoo.com/quote/002460.SZ"]
+  },
+  {
+    "name": "Mineral Resources Limited",
+    "ticker": "MIN",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.mineralresources.com.au",
+    "description": "Diversified resources company with large hard rock lithium reserves at Wodgina mine, plus iron ore and mining services",
+    "market_cap": 8360000000,
+    "urls": ["https://www.mineralresources.com.au", "https://www.marketindex.com.au/asx/min"]
+  },
+  {
+    "name": "Liontown Resources Limited",
+    "ticker": "LTR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.ltresources.com.au",
+    "description": "Battery minerals producer operating the Kathleen Valley lithium project in Western Australia",
+    "market_cap": 2850000000,
+    "urls": ["https://www.ltresources.com.au", "https://www.marketindex.com.au/asx/ltr"]
+  },
+  {
+    "name": "IGO Limited",
+    "ticker": "IGO",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.igo.com.au",
+    "description": "Clean energy minerals company with nickel operations and 49% stake in Greenbushes lithium mine joint venture",
+    "market_cap": 4066000000,
+    "urls": ["https://www.igo.com.au", "https://www.marketindex.com.au/asx/igo"]
+  },
+  {
+    "name": "Core Lithium Ltd",
+    "ticker": "CXO",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.corelithium.com.au",
+    "description": "Australian lithium miner operating the Finniss Lithium Operation in the Northern Territory",
+    "market_cap": 264700000,
+    "urls": ["https://www.corelithium.com.au", "https://www.marketindex.com.au/asx/cxo"]
+  },
+  {
+    "name": "Lithium Americas Corp.",
+    "ticker": "LAC",
+    "exchange": "NYSE",
+    "country": "Canada",
+    "website": "https://www.lithiumamericas.com",
+    "description": "Developing Thacker Pass project in Nevada, largest known measured lithium resource in North America",
+    "market_cap": 656000000,
+    "urls": ["https://www.lithiumamericas.com", "https://finance.yahoo.com/quote/LAC"]
+  },
+  {
+    "name": "Sigma Lithium Corporation",
+    "ticker": "SGML",
+    "exchange": "NASDAQ",
+    "country": "Brazil",
+    "website": "https://www.sigmalithiumresources.com",
+    "description": "Lithium mining company developing projects in the Minas Gerais region of Brazil",
+    "market_cap": 574772000,
+    "urls": ["https://www.sigmalithiumresources.com", "https://finance.yahoo.com/quote/SGML"]
+  },
+  {
+    "name": "Piedmont Lithium Inc.",
+    "ticker": "PLL",
+    "exchange": "NASDAQ",
+    "country": "USA",
+    "website": "https://www.piedmontlithium.com",
+    "description": "Development stage lithium company with Carolina Lithium Project, subsidiary of Sayona Mining",
+    "market_cap": 199710000,
+    "urls": ["https://www.piedmontlithium.com", "https://finance.yahoo.com/quote/PLL"]
+  },
+  {
+    "name": "BHP Group Limited",
+    "ticker": "BHP",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.bhp.com",
+    "description": "World's largest copper producer with iron ore, nickel, potash and metallurgical coal operations globally",
+    "market_cap": 212800000000,
+    "urls": ["https://www.bhp.com", "https://finance.yahoo.com/quote/BHP"]
+  },
+  {
+    "name": "Rio Tinto Group",
+    "ticker": "RIO",
+    "exchange": "LSE",
+    "country": "UK",
+    "website": "https://www.riotinto.com",
+    "description": "Diversified mining giant with copper, lithium, iron ore, aluminum operations worldwide",
+    "market_cap": 81100000000,
+    "urls": ["https://www.riotinto.com", "https://finance.yahoo.com/quote/RIO"]
+  },
+  {
+    "name": "Glencore plc",
+    "ticker": "GLEN",
+    "exchange": "LSE",
+    "country": "Switzerland",
+    "website": "https://www.glencore.com",
+    "description": "Major producer and marketer of copper, cobalt, nickel, zinc and other commodities",
+    "market_cap": 42000000000,
+    "urls": ["https://www.glencore.com", "https://www.google.com/finance/quote/GLEN:LON"]
+  },
+  {
+    "name": "Freeport-McMoRan Inc.",
+    "ticker": "FCX",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.fcx.com",
+    "description": "Leading copper producer with operations in Indonesia, Peru, and the United States",
+    "market_cap": 58420000000,
+    "urls": ["https://www.fcx.com", "https://finance.yahoo.com/quote/FCX"]
+  },
+  {
+    "name": "Southern Copper Corporation",
+    "ticker": "SCCO",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.southerncoppercorp.com",
+    "description": "Major copper producer with mining operations in Peru and Mexico",
+    "market_cap": 75687000000,
+    "urls": ["https://www.southerncoppercorp.com", "https://finance.yahoo.com/quote/SCCO"]
+  },
+  {
+    "name": "Vale S.A.",
+    "ticker": "VALE",
+    "exchange": "NYSE",
+    "country": "Brazil",
+    "website": "https://www.vale.com",
+    "description": "World's largest iron ore and nickel producer with copper, cobalt and other metal operations",
+    "market_cap": 47320000000,
+    "urls": ["https://www.vale.com", "https://finance.yahoo.com/quote/VALE"]
+  },
+  {
+    "name": "Anglo American plc",
+    "ticker": "AAL",
+    "exchange": "LSE",
+    "country": "UK",
+    "website": "https://www.angloamerican.com",
+    "description": "Multinational mining company producing copper, platinum, diamonds, iron ore and metallurgical coal",
+    "market_cap": 30000000000,
+    "urls": ["https://www.angloamerican.com", "https://www.lse.co.uk/SharePrice.html?shareprice=AAL"]
+  },
+  {
+    "name": "Ivanhoe Mines Ltd.",
+    "ticker": "IVN",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.ivanhoemines.com",
+    "description": "Developing major copper projects including Kamoa-Kakula in DRC and Platreef in South Africa",
+    "market_cap": 19750000000,
+    "urls": ["https://www.ivanhoemines.com", "https://finance.yahoo.com/quote/IVN.TO"]
+  },
+  {
+    "name": "MP Materials Corp.",
+    "ticker": "MP",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.mpmaterials.com",
+    "description": "America's only integrated rare earth producer, operating Mountain Pass mine in California",
+    "market_cap": 13060000000,
+    "urls": ["https://www.mpmaterials.com", "https://finance.yahoo.com/quote/MP"]
+  },
+  {
+    "name": "Lynas Rare Earths Limited",
+    "ticker": "LYC",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.lynasrareearths.com",
+    "description": "Leading rare earths producer outside China with Mt Weld mine in Western Australia",
+    "market_cap": 19390000000,
+    "urls": ["https://www.lynasrareearths.com", "https://www.marketindex.com.au/asx/lyc"]
+  },
+  {
+    "name": "Syrah Resources Limited",
+    "ticker": "SYR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.syrahresources.com.au",
+    "description": "Natural graphite producer operating Balama mine in Mozambique and Vidalia processing facility in Louisiana",
+    "market_cap": 550000000,
+    "urls": ["https://www.syrahresources.com.au", "https://www.marketindex.com.au/asx/syr"]
+  },
+  {
+    "name": "Norilsk Nickel",
+    "ticker": "GMKN",
+    "exchange": "MOEX",
+    "country": "Russia",
+    "website": "https://www.nornickel.com",
+    "description": "World's largest refined nickel producer and major producer of palladium and copper",
+    "market_cap": 25000000000,
+    "urls": ["https://www.nornickel.com", "https://www.bloomberg.com/quote/GMKN:RM"]
+  },
+  {
+    "name": "Antofagasta plc",
+    "ticker": "ANTO",
+    "exchange": "LSE",
+    "country": "Chile",
+    "website": "https://www.antofagasta.co.uk",
+    "description": "Chilean copper mining group with operations in Chile and exploration activities globally",
+    "market_cap": 15800000000,
+    "urls": ["https://www.antofagasta.co.uk", "https://www.lse.co.uk/SharePrice.html?shareprice=ANTO"]
+  },
+  {
+    "name": "First Quantum Minerals Ltd.",
+    "ticker": "FM",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.first-quantum.com",
+    "description": "Major copper producer with mines in Zambia, Panama, Peru, and other locations",
+    "market_cap": 8500000000,
+    "urls": ["https://www.first-quantum.com", "https://finance.yahoo.com/quote/FM.TO"]
+  },
+  {
+    "name": "Lundin Mining Corporation",
+    "ticker": "LUN",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.lundinmining.com",
+    "description": "Diversified base metals producer with copper, zinc, and nickel operations",
+    "market_cap": 7200000000,
+    "urls": ["https://www.lundinmining.com", "https://finance.yahoo.com/quote/LUN.TO"]
+  },
+  {
+    "name": "Teck Resources Limited",
+    "ticker": "TECK",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.teck.com",
+    "description": "Diversified resource company producing copper, zinc and metallurgical coal",
+    "market_cap": 18500000000,
+    "urls": ["https://www.teck.com", "https://finance.yahoo.com/quote/TECK.TO"]
+  },
+  {
+    "name": "Hudbay Minerals Inc.",
+    "ticker": "HBM",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.hudbay.com",
+    "description": "Integrated mining company producing copper, zinc, gold and silver",
+    "market_cap": 3800000000,
+    "urls": ["https://www.hudbay.com", "https://finance.yahoo.com/quote/HBM.TO"]
+  },
+  {
+    "name": "Capricorn Metals Ltd",
+    "ticker": "CMM",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.capmet.com.au",
+    "description": "Gold mining company operating the Karlawinda Gold Project in Western Australia",
+    "market_cap": 900000000,
+    "urls": ["https://www.capmet.com.au", "https://www.asx.com.au/markets/company/CMM"]
+  },
+  {
+    "name": "Oz Minerals Limited",
+    "ticker": "OZL",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.ozminerals.com",
+    "description": "Copper-gold miner operating Prominent Hill and Carrapateena mines in South Australia (acquired by BHP)",
+    "market_cap": 9000000000,
+    "urls": ["https://www.ozminerals.com", "https://www.asx.com.au/markets/company/OZL"]
+  },
+  {
+    "name": "Sandfire Resources Limited",
+    "ticker": "SFR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.sandfire.com.au",
+    "description": "Base metals mining company with copper operations in Australia and Botswana",
+    "market_cap": 2100000000,
+    "urls": ["https://www.sandfire.com.au", "https://www.asx.com.au/markets/company/SFR"]
+  },
+  {
+    "name": "29Metals Limited",
+    "ticker": "29M",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.29metals.com",
+    "description": "Copper-zinc-silver producer operating Golden Grove and Capricorn Copper mines",
+    "market_cap": 450000000,
+    "urls": ["https://www.29metals.com", "https://www.asx.com.au/markets/company/29M"]
+  },
+  {
+    "name": "Aeris Resources Limited",
+    "ticker": "AIS",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.aerisresources.com.au",
+    "description": "Australian copper-gold producer with multiple mines in Queensland and New South Wales",
+    "market_cap": 600000000,
+    "urls": ["https://www.aerisresources.com.au", "https://www.asx.com.au/markets/company/AIS"]
+  },
+  {
+    "name": "Panoramic Resources Limited",
+    "ticker": "PAN",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.panoramicresources.com",
+    "description": "Nickel-copper-cobalt producer developing Savannah project in Western Australia",
+    "market_cap": 180000000,
+    "urls": ["https://www.panoramicresources.com", "https://www.asx.com.au/markets/company/PAN"]
+  },
+  {
+    "name": "Jindalee Resources Limited",
+    "ticker": "JRL",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.jindalee.net",
+    "description": "Lithium exploration company with McDermitt and other lithium projects",
+    "market_cap": 35940000,
+    "urls": ["https://www.jindalee.net", "https://www.asx.com.au/markets/company/JRL"]
+  },
+  {
+    "name": "Lake Resources NL",
+    "ticker": "LKE",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.lakeresources.com.au",
+    "description": "Lithium development company with Kachi lithium brine project in Argentina",
+    "market_cap": 200000000,
+    "urls": ["https://www.lakeresources.com.au", "https://www.asx.com.au/markets/company/LKE"]
+  },
+  {
+    "name": "Vulcan Energy Resources Ltd",
+    "ticker": "VUL",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.v-er.eu",
+    "description": "Zero carbon lithium project developer in Germany's Upper Rhine Valley",
+    "market_cap": 450000000,
+    "urls": ["https://www.v-er.eu", "https://www.asx.com.au/markets/company/VUL"]
+  },
+  {
+    "name": "Global Lithium Resources Limited",
+    "ticker": "GL1",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.globallithium.com.au",
+    "description": "Lithium exploration and development company with projects in Western Australia",
+    "market_cap": 120000000,
+    "urls": ["https://www.globallithium.com.au", "https://www.asx.com.au/markets/company/GL1"]
+  },
+  {
+    "name": "Patriot Battery Metals Inc.",
+    "ticker": "PMET",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.patriotbatterymetals.com",
+    "description": "Lithium exploration company developing Corvette property in Quebec",
+    "market_cap": 850000000,
+    "urls": ["https://www.patriotbatterymetals.com", "https://finance.yahoo.com/quote/PMET.V"]
+  },
+  {
+    "name": "Frontier Lithium Inc.",
+    "ticker": "FL",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.frontierlithium.com",
+    "description": "Lithium development company with PAK Lithium Project in Ontario",
+    "market_cap": 180000000,
+    "urls": ["https://www.frontierlithium.com", "https://finance.yahoo.com/quote/FL.V"]
+  },
+  {
+    "name": "Standard Lithium Ltd.",
+    "ticker": "SLI",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.standardlithium.com",
+    "description": "Lithium development company with direct lithium extraction projects in Arkansas",
+    "market_cap": 200000000,
+    "urls": ["https://www.standardlithium.com", "https://finance.yahoo.com/quote/SLI.V"]
+  },
+  {
+    "name": "Critical Elements Lithium Corporation",
+    "ticker": "CRE",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.cecorp.ca",
+    "description": "Lithium mining company developing Rose lithium-tantalum project in Quebec",
+    "market_cap": 150000000,
+    "urls": ["https://www.cecorp.ca", "https://finance.yahoo.com/quote/CRE.V"]
+  },
+  {
+    "name": "Sayona Mining Limited",
+    "ticker": "SYA",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.sayonamining.com.au",
+    "description": "Lithium producer with North American Lithium operations in Quebec",
+    "market_cap": 320000000,
+    "urls": ["https://www.sayonamining.com.au", "https://www.asx.com.au/markets/company/SYA"]
+  },
+  {
+    "name": "ioneer Ltd",
+    "ticker": "INR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.ioneer.com",
+    "description": "Lithium-boron developer with Rhyolite Ridge project in Nevada",
+    "market_cap": 280000000,
+    "urls": ["https://www.ioneer.com", "https://www.asx.com.au/markets/company/INR"]
+  },
+  {
+    "name": "European Lithium Limited",
+    "ticker": "EUR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.europeanlithium.com",
+    "description": "Lithium development company with Wolfsberg Lithium Project in Austria",
+    "market_cap": 90000000,
+    "urls": ["https://www.europeanlithium.com", "https://www.asx.com.au/markets/company/EUR"]
+  },
+  {
+    "name": "Argosy Minerals Limited",
+    "ticker": "AGY",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.argosyminerals.com.au",
+    "description": "Lithium development company with Rincon lithium project in Argentina",
+    "market_cap": 180000000,
+    "urls": ["https://www.argosyminerals.com.au", "https://www.asx.com.au/markets/company/AGY"]
+  },
+  {
+    "name": "Latin Resources Limited",
+    "ticker": "LRS",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.latinresources.com.au",
+    "description": "Lithium explorer with projects in Brazil and Australia",
+    "market_cap": 75000000,
+    "urls": ["https://www.latinresources.com.au", "https://www.asx.com.au/markets/company/LRS"]
+  },
+  {
+    "name": "Leo Lithium Limited",
+    "ticker": "LLL",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.leolithium.com",
+    "description": "Lithium development company with Goulamina project in Mali",
+    "market_cap": 550000000,
+    "urls": ["https://www.leolithium.com", "https://www.asx.com.au/markets/company/LLL"]
+  },
+  {
+    "name": "AVZ Minerals Limited",
+    "ticker": "AVZ",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.avzminerals.com.au",
+    "description": "Lithium developer with Manono lithium-tin project in DRC",
+    "market_cap": 420000000,
+    "urls": ["https://www.avzminerals.com.au", "https://www.asx.com.au/markets/company/AVZ"]
+  },
+  {
+    "name": "Azure Minerals Limited",
+    "ticker": "AZS",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.azureminerals.com.au",
+    "description": "Lithium-nickel explorer with Andover lithium project in Western Australia",
+    "market_cap": 650000000,
+    "urls": ["https://www.azureminerals.com.au", "https://www.asx.com.au/markets/company/AZS"]
+  },
+  {
+    "name": "Chalice Mining Limited",
+    "ticker": "CHN",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.chalicemining.com",
+    "description": "Explorer with high-grade nickel-copper-PGE discovery at Gonneville, Western Australia",
+    "market_cap": 1200000000,
+    "urls": ["https://www.chalicemining.com", "https://www.asx.com.au/markets/company/CHN"]
+  },
+  {
+    "name": "Nickel Industries Limited",
+    "ticker": "NIC",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.nickelindustries.com",
+    "description": "Nickel pig iron producer with operations in Indonesia",
+    "market_cap": 2300000000,
+    "urls": ["https://www.nickelindustries.com", "https://www.asx.com.au/markets/company/NIC"]
+  },
+  {
+    "name": "Mincor Resources NL",
+    "ticker": "MCR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.mincor.com.au",
+    "description": "Nickel-copper explorer and developer in Western Australia",
+    "market_cap": 180000000,
+    "urls": ["https://www.mincor.com.au", "https://www.asx.com.au/markets/company/MCR"]
+  },
+  {
+    "name": "Western Areas Limited",
+    "ticker": "WSA",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.westernareas.com.au",
+    "description": "Nickel producer with operations in Western Australia (acquired by IGO)",
+    "market_cap": 1200000000,
+    "urls": ["https://www.westernareas.com.au", "https://www.asx.com.au/markets/company/WSA"]
+  },
+  {
+    "name": "Ardea Resources Limited",
+    "ticker": "ARL",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.ardearesources.com.au",
+    "description": "Nickel-cobalt developer with Kalgoorlie Nickel Project in Western Australia",
+    "market_cap": 95000000,
+    "urls": ["https://www.ardearesources.com.au", "https://www.asx.com.au/markets/company/ARL"]
+  },
+  {
+    "name": "Talon Metals Corp.",
+    "ticker": "TLO",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.talonmetals.com",
+    "description": "Nickel-copper-cobalt developer with Tamarack Project in Minnesota",
+    "market_cap": 380000000,
+    "urls": ["https://www.talonmetals.com", "https://finance.yahoo.com/quote/TLO.TO"]
+  },
+  {
+    "name": "Canada Nickel Company Inc.",
+    "ticker": "CNC",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.canadanickel.com",
+    "description": "Nickel-cobalt developer with Crawford project in Ontario",
+    "market_cap": 420000000,
+    "urls": ["https://www.canadanickel.com", "https://finance.yahoo.com/quote/CNC.V"]
+  },
+  {
+    "name": "Sama Resources Inc.",
+    "ticker": "SME",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.samaresources.com",
+    "description": "Nickel-copper-cobalt developer with projects in Ivory Coast",
+    "market_cap": 45000000,
+    "urls": ["https://www.samaresources.com", "https://finance.yahoo.com/quote/SME.V"]
+  },
+  {
+    "name": "Arafura Resources Limited",
+    "ticker": "ARU",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.arultd.com",
+    "description": "Rare earths developer with Nolans Project in Northern Territory",
+    "market_cap": 729110000,
+    "urls": ["https://www.arultd.com", "https://www.asx.com.au/markets/company/ARU"]
+  },
+  {
+    "name": "Iluka Resources Limited",
+    "ticker": "ILU",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.iluka.com",
+    "description": "Mineral sands and rare earths producer, developing Eneabba refinery in Western Australia",
+    "market_cap": 3800000000,
+    "urls": ["https://www.iluka.com", "https://www.asx.com.au/markets/company/ILU"]
+  },
+  {
+    "name": "Northern Minerals Limited",
+    "ticker": "NTU",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.northernminerals.com.au",
+    "description": "Heavy rare earths developer with Browns Range project in Western Australia",
+    "market_cap": 125000000,
+    "urls": ["https://www.northernminerals.com.au", "https://www.asx.com.au/markets/company/NTU"]
+  },
+  {
+    "name": "Energy Fuels Inc.",
+    "ticker": "UUUU",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.energyfuels.com",
+    "description": "Leading U.S. uranium producer also producing rare earths",
+    "market_cap": 1010000000,
+    "urls": ["https://www.energyfuels.com", "https://finance.yahoo.com/quote/UUUU"]
+  },
+  {
+    "name": "USA Rare Earth LLC",
+    "ticker": "USRE",
+    "exchange": "NASDAQ",
+    "country": "USA",
+    "website": "https://www.usarareearth.com",
+    "description": "Rare earth development company with Round Top project in Texas",
+    "market_cap": 250000000,
+    "urls": ["https://www.usarareearth.com", "https://finance.yahoo.com/quote/USRE"]
+  },
+  {
+    "name": "NioCorp Developments Ltd.",
+    "ticker": "NB",
+    "exchange": "NASDAQ",
+    "country": "USA",
+    "website": "https://www.niocorp.com",
+    "description": "Critical minerals developer with Elk Creek niobium-scandium-titanium project in Nebraska",
+    "market_cap": 180000000,
+    "urls": ["https://www.niocorp.com", "https://finance.yahoo.com/quote/NB"]
+  },
+  {
+    "name": "American Rare Earths Limited",
+    "ticker": "ARR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.americanrareearths.com.au",
+    "description": "Rare earths explorer with Halleck Creek project in Wyoming",
+    "market_cap": 220000000,
+    "urls": ["https://www.americanrareearths.com.au", "https://www.asx.com.au/markets/company/ARR"]
+  },
+  {
+    "name": "Talga Group Ltd",
+    "ticker": "TLG",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.talgaresources.com",
+    "description": "Graphite and battery anode materials company with Vittangi project in Sweden",
+    "market_cap": 380000000,
+    "urls": ["https://www.talgaresources.com", "https://www.asx.com.au/markets/company/TLG"]
+  },
+  {
+    "name": "Sovereign Metals Limited",
+    "ticker": "SVM",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.sovereignmetals.com.au",
+    "description": "Developing Kasiya rutile-graphite project in Malawi",
+    "market_cap": 520000000,
+    "urls": ["https://www.sovereignmetals.com.au", "https://www.asx.com.au/markets/company/SVM"]
+  },
+  {
+    "name": "NextSource Materials Inc.",
+    "ticker": "NEXT",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.nextsourcematerials.com",
+    "description": "Graphite producer with Molo mine in Madagascar",
+    "market_cap": 95000000,
+    "urls": ["https://www.nextsourcematerials.com", "https://finance.yahoo.com/quote/NEXT.TO"]
+  },
+  {
+    "name": "Northern Graphite Corporation",
+    "ticker": "NGC",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.northerngraphite.com",
+    "description": "Only graphite producing company in North America",
+    "market_cap": 65000000,
+    "urls": ["https://www.northerngraphite.com", "https://finance.yahoo.com/quote/NGC.V"]
+  },
+  {
+    "name": "Renascor Resources Limited",
+    "ticker": "RNU",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.renascor.com.au",
+    "description": "Graphite developer with Siviour project in South Australia",
+    "market_cap": 145000000,
+    "urls": ["https://www.renascor.com.au", "https://www.asx.com.au/markets/company/RNU"]
+  },
+  {
+    "name": "EcoGraf Limited",
+    "ticker": "EGR",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.ecograf.com.au",
+    "description": "Graphite developer with battery anode material and recycling facilities",
+    "market_cap": 95000000,
+    "urls": ["https://www.ecograf.com.au", "https://www.asx.com.au/markets/company/EGR"]
+  },
+  {
+    "name": "Nouveau Monde Graphite Inc.",
+    "ticker": "NOU",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.nouveaumonde.ca",
+    "description": "Developing integrated graphite mine and battery anode material plant in Quebec",
+    "market_cap": 125000000,
+    "urls": ["https://www.nouveaumonde.ca", "https://finance.yahoo.com/quote/NOU.V"]
+  },
+  {
+    "name": "Capstone Copper Corp.",
+    "ticker": "CS",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.capstonecoppercorp.com",
+    "description": "Copper producer with mines in Mexico, Chile and the United States",
+    "market_cap": 2800000000,
+    "urls": ["https://www.capstonecoppercorp.com", "https://finance.yahoo.com/quote/CS.TO"]
+  },
+  {
+    "name": "Copper Mountain Mining Corporation",
+    "ticker": "CMMC",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.cumtn.com",
+    "description": "Copper producer operating Copper Mountain mine in British Columbia",
+    "market_cap": 650000000,
+    "urls": ["https://www.cumtn.com", "https://finance.yahoo.com/quote/CMMC.TO"]
+  },
+  {
+    "name": "Trilogy Metals Inc.",
+    "ticker": "TMQ",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.trilogymetals.com",
+    "description": "Copper-zinc-lead-silver developer with projects in Alaska",
+    "market_cap": 180000000,
+    "urls": ["https://www.trilogymetals.com", "https://finance.yahoo.com/quote/TMQ.TO"]
+  },
+  {
+    "name": "Ero Copper Corp.",
+    "ticker": "ERO",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.erocopper.com",
+    "description": "Copper producer with operations in Brazil",
+    "market_cap": 1900000000,
+    "urls": ["https://www.erocopper.com", "https://finance.yahoo.com/quote/ERO.TO"]
+  },
+  {
+    "name": "Solaris Resources Inc.",
+    "ticker": "SLS",
+    "exchange": "TSX",
+    "country": "Canada",
+    "website": "https://www.solarisresources.com",
+    "description": "Copper explorer with Warintza project in Ecuador",
+    "market_cap": 780000000,
+    "urls": ["https://www.solarisresources.com", "https://finance.yahoo.com/quote/SLS.TO"]
+  },
+  {
+    "name": "Filo Corp.",
+    "ticker": "FIL",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.filocorp.com",
+    "description": "Copper-gold-silver explorer with Filo del Sol project on Argentina-Chile border",
+    "market_cap": 1200000000,
+    "urls": ["https://www.filocorp.com", "https://finance.yahoo.com/quote/FIL.V"]
+  },
+  {
+    "name": "Hot Chili Limited",
+    "ticker": "HCH",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.hotchili.net.au",
+    "description": "Copper-gold developer with Costa Fuego project in Chile",
+    "market_cap": 280000000,
+    "urls": ["https://www.hotchili.net.au", "https://www.asx.com.au/markets/company/HCH"]
+  },
+  {
+    "name": "Caravel Minerals Limited",
+    "ticker": "CVV",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.caravelminerals.com.au",
+    "description": "Copper explorer with projects in Western Australia",
+    "market_cap": 95000000,
+    "urls": ["https://www.caravelminerals.com.au", "https://www.asx.com.au/markets/company/CVV"]
+  },
+  {
+    "name": "Adriatic Metals plc",
+    "ticker": "ADT",
+    "exchange": "ASX",
+    "country": "UK",
+    "website": "https://www.adriaticmetals.com",
+    "description": "Zinc-lead-silver-gold-barite developer with Vares project in Bosnia",
+    "market_cap": 850000000,
+    "urls": ["https://www.adriaticmetals.com", "https://www.asx.com.au/markets/company/ADT"]
+  },
+  {
+    "name": "Orocobre Limited",
+    "ticker": "ORE",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.orocobre.com",
+    "description": "Lithium producer operating Olaroz in Argentina (merged with Allkem)",
+    "market_cap": 2100000000,
+    "urls": ["https://www.orocobre.com", "https://www.asx.com.au/markets/company/ORE"]
+  },
+  {
+    "name": "Galaxy Resources Limited",
+    "ticker": "GXY",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.galaxyresources.com.au",
+    "description": "Lithium producer with operations in Australia (merged with Orocobre to form Allkem)",
+    "market_cap": 1850000000,
+    "urls": ["https://www.galaxyresources.com.au", "https://www.asx.com.au/markets/company/GXY"]
+  },
+  {
+    "name": "Atlantic Lithium Limited",
+    "ticker": "ALL",
+    "exchange": "LSE",
+    "country": "Australia",
+    "website": "https://www.atlanticlithium.com.au",
+    "description": "Lithium developer with Ewoyaa project in Ghana",
+    "market_cap": 420000000,
+    "urls": ["https://www.atlanticlithium.com.au", "https://www.lse.co.uk/SharePrice.html?shareprice=ALL"]
+  },
+  {
+    "name": "Green Technology Metals Limited",
+    "ticker": "GT1",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.greentm.com.au",
+    "description": "Lithium developer with projects in Ontario and Western Australia",
+    "market_cap": 380000000,
+    "urls": ["https://www.greentm.com.au", "https://www.asx.com.au/markets/company/GT1"]
+  },
+  {
+    "name": "Delta Lithium Limited",
+    "ticker": "DLI",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.deltalithium.com.au",
+    "description": "Lithium explorer with projects in Western Australia",
+    "market_cap": 65000000,
+    "urls": ["https://www.deltalithium.com.au", "https://www.asx.com.au/markets/company/DLI"]
+  },
+  {
+    "name": "Alkane Resources Ltd",
+    "ticker": "ALK",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.alkane.com.au",
+    "description": "Gold producer and critical minerals explorer in New South Wales",
+    "market_cap": 420000000,
+    "urls": ["https://www.alkane.com.au", "https://www.asx.com.au/markets/company/ALK"]
+  },
+  {
+    "name": "Piedmont Rare Earths Inc.",
+    "ticker": "PRL",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.piedmontrareearths.com",
+    "description": "Rare earths explorer with projects in Canada",
+    "market_cap": 42000000,
+    "urls": ["https://www.piedmontrareearths.com", "https://finance.yahoo.com/quote/PRL.V"]
+  },
+  {
+    "name": "Defense Metals Corp.",
+    "ticker": "DEFN",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.defensemetals.com",
+    "description": "Rare earths developer with Wicheeda project in British Columbia",
+    "market_cap": 35000000,
+    "urls": ["https://www.defensemetals.com", "https://finance.yahoo.com/quote/DEFN.V"]
+  },
+  {
+    "name": "Search Minerals Inc.",
+    "ticker": "SMY",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.searchminerals.ca",
+    "description": "Rare earths developer with projects in Newfoundland and Labrador",
+    "market_cap": 28000000,
+    "urls": ["https://www.searchminerals.ca", "https://finance.yahoo.com/quote/SMY.V"]
+  },
+  {
+    "name": "Commerce Resources Corp.",
+    "ticker": "CCE",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.commerceresources.com",
+    "description": "Rare earths and tantalum developer with Ashram project in Quebec",
+    "market_cap": 22000000,
+    "urls": ["https://www.commerceresources.com", "https://finance.yahoo.com/quote/CCE.V"]
+  },
+  {
+    "name": "Peak Resources Limited",
+    "ticker": "PEK",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.peakresources.com.au",
+    "description": "Rare earths developer with Ngualla project in Tanzania",
+    "market_cap": 85000000,
+    "urls": ["https://www.peakresources.com.au", "https://www.asx.com.au/markets/company/PEK"]
+  },
+  {
+    "name": "Hastings Technology Metals Ltd",
+    "ticker": "HAS",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.hastingstechmetals.com",
+    "description": "Rare earths developer with Yangibana project in Western Australia",
+    "market_cap": 320000000,
+    "urls": ["https://www.hastingstechmetals.com", "https://www.asx.com.au/markets/company/HAS"]
+  },
+  {
+    "name": "Vital Metals Limited",
+    "ticker": "VML",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.vitalmetals.com.au",
+    "description": "Rare earths company with Nechalacho project in Canada",
+    "market_cap": 125000000,
+    "urls": ["https://www.vitalmetals.com.au", "https://www.asx.com.au/markets/company/VML"]
+  },
+  {
+    "name": "Rare Element Resources Ltd.",
+    "ticker": "REEMF",
+    "exchange": "OTC",
+    "country": "USA",
+    "website": "https://www.rareelementresources.com",
+    "description": "Rare earths developer with Bear Lodge project in Wyoming",
+    "market_cap": 38000000,
+    "urls": ["https://www.rareelementresources.com", "https://finance.yahoo.com/quote/REEMF"]
+  },
+  {
+    "name": "Texas Mineral Resources Corp.",
+    "ticker": "TMRC",
+    "exchange": "OTC",
+    "country": "USA",
+    "website": "https://www.tmrcorp.com",
+    "description": "Rare earths and lithium developer with Round Top project in Texas",
+    "market_cap": 95000000,
+    "urls": ["https://www.tmrcorp.com", "https://finance.yahoo.com/quote/TMRC"]
+  },
+  {
+    "name": "Ucore Rare Metals Inc.",
+    "ticker": "UCU",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://ucore.com",
+    "description": "Rare earths company with Bokan project in Alaska and separation technology",
+    "market_cap": 85000000,
+    "urls": ["https://ucore.com", "https://finance.yahoo.com/quote/UCU.V"]
+  },
+  {
+    "name": "Medallion Resources Ltd.",
+    "ticker": "MDL",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.medallionresources.com",
+    "description": "Rare earths processing technology company",
+    "market_cap": 18000000,
+    "urls": ["https://www.medallionresources.com", "https://finance.yahoo.com/quote/MDL.V"]
+  },
+  {
+    "name": "Appia Rare Earths & Uranium Corp.",
+    "ticker": "API",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.appiareu.com",
+    "description": "Rare earths and uranium explorer in Saskatchewan",
+    "market_cap": 42000000,
+    "urls": ["https://www.appiareu.com", "https://finance.yahoo.com/quote/API.V"]
+  },
+  {
+    "name": "Perpetua Resources Corp.",
+    "ticker": "PPTA",
+    "exchange": "NASDAQ",
+    "country": "USA",
+    "website": "https://www.perpetuaresources.com",
+    "description": "Gold-antimony developer with Stibnite project in Idaho",
+    "market_cap": 520000000,
+    "urls": ["https://www.perpetuaresources.com", "https://finance.yahoo.com/quote/PPTA"]
+  },
+  {
+    "name": "Jervois Global Limited",
+    "ticker": "JRV",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.jervoisglobal.com",
+    "description": "Cobalt and nickel company with operations in Idaho and Finland",
+    "market_cap": 180000000,
+    "urls": ["https://www.jervoisglobal.com", "https://www.asx.com.au/markets/company/JRV"]
+  },
+  {
+    "name": "Electra Battery Materials Corporation",
+    "ticker": "ELBM",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.electrabmc.com",
+    "description": "Cobalt refinery operator in Ontario processing black mass from battery recycling",
+    "market_cap": 95000000,
+    "urls": ["https://www.electrabmc.com", "https://finance.yahoo.com/quote/ELBM.V"]
+  },
+  {
+    "name": "Fortune Minerals Limited",
+    "ticker": "FT",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.fortuneminerals.com",
+    "description": "Cobalt-gold-bismuth developer with NICO project in Northwest Territories",
+    "market_cap": 32000000,
+    "urls": ["https://www.fortuneminerals.com", "https://finance.yahoo.com/quote/FT.V"]
+  },
+  {
+    "name": "First Cobalt Corp.",
+    "ticker": "FCC",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.firstcobalt.com",
+    "description": "Cobalt refinery developer with facility in Ontario",
+    "market_cap": 125000000,
+    "urls": ["https://www.firstcobalt.com", "https://finance.yahoo.com/quote/FCC.V"]
+  },
+  {
+    "name": "Clean TeQ Holdings Limited",
+    "ticker": "CLQ",
+    "exchange": "ASX",
+    "country": "Australia",
+    "website": "https://www.cleanteq.com",
+    "description": "Nickel-cobalt-scandium developer with Sunrise project in New South Wales",
+    "market_cap": 85000000,
+    "urls": ["https://www.cleanteq.com", "https://www.asx.com.au/markets/company/CLQ"]
+  },
+  {
+    "name": "Berkshire Hathaway Energy - BHE Renewables",
+    "ticker": "BRK.B",
+    "exchange": "NYSE",
+    "country": "USA",
+    "website": "https://www.brkenergy.com",
+    "description": "Energy company developing lithium extraction from geothermal brine in California",
+    "market_cap": 1000000000000,
+    "urls": ["https://www.brkenergy.com", "https://finance.yahoo.com/quote/BRK.B"]
+  },
+  {
+    "name": "Controlled Thermal Resources Ltd.",
+    "ticker": "CTR",
+    "exchange": "Private",
+    "country": "Australia",
+    "website": "https://www.cthermal.com",
+    "description": "Geothermal lithium developer with Hell's Kitchen project in California",
+    "market_cap": 1200000000,
+    "urls": ["https://www.cthermal.com"]
+  },
+  {
+    "name": "EnergySource Minerals",
+    "ticker": "ESM",
+    "exchange": "Private",
+    "country": "USA",
+    "website": "https://www.energysourceminerals.com",
+    "description": "Geothermal lithium developer with ATLiS project in Imperial Valley, California",
+    "market_cap": 850000000,
+    "urls": ["https://www.energysourceminerals.com"]
+  },
+  {
+    "name": "Lithium Ionic Corp.",
+    "ticker": "LTH",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://lithiumionic.com",
+    "description": "Lithium developer with Bandeira project in Brazil",
+    "market_cap": 78000000,
+    "urls": ["https://lithiumionic.com", "https://finance.yahoo.com/quote/LTH.V"]
+  },
+  {
+    "name": "Quantum Battery Metals Corp.",
+    "ticker": "QBAT",
+    "exchange": "CSE",
+    "country": "Canada",
+    "website": "https://www.quantumbatterymetals.com",
+    "description": "Battery metals explorer with lithium projects in Canada",
+    "market_cap": 12000000,
+    "urls": ["https://www.quantumbatterymetals.com", "https://finance.yahoo.com/quote/QBAT.CN"]
+  },
+  {
+    "name": "Voltaic Minerals Corp.",
+    "ticker": "VLT",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.voltaicminerals.com",
+    "description": "Lithium explorer with Rainbow Lake project in Alberta",
+    "market_cap": 18000000,
+    "urls": ["https://www.voltaicminerals.com", "https://finance.yahoo.com/quote/VLT.V"]
+  },
+  {
+    "name": "American Lithium Corp.",
+    "ticker": "LI",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.americanlithiumcorp.com",
+    "description": "Lithium developer with TLC and Falchani projects in Nevada and Peru",
+    "market_cap": 285000000,
+    "urls": ["https://www.americanlithiumcorp.com", "https://finance.yahoo.com/quote/LI.V"]
+  },
+  {
+    "name": "Cypress Development Corp.",
+    "ticker": "CYP",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.cypressdevelopmentcorp.com",
+    "description": "Lithium developer with Clayton Valley project in Nevada",
+    "market_cap": 95000000,
+    "urls": ["https://www.cypressdevelopmentcorp.com", "https://finance.yahoo.com/quote/CYP.V"]
+  },
+  {
+    "name": "Noram Lithium Corp.",
+    "ticker": "NRM",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.noramlithiumcorp.com",
+    "description": "Lithium explorer with Zeus project in Clayton Valley, Nevada",
+    "market_cap": 52000000,
+    "urls": ["https://www.noramlithiumcorp.com", "https://finance.yahoo.com/quote/NRM.V"]
+  },
+  {
+    "name": "Pure Energy Minerals Limited",
+    "ticker": "PE",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://www.pureenergyminerals.com",
+    "description": "Lithium developer with Clayton Valley project in Nevada",
+    "market_cap": 28000000,
+    "urls": ["https://www.pureenergyminerals.com", "https://finance.yahoo.com/quote/PE.V"]
+  },
+  {
+    "name": "Kodal Minerals plc",
+    "ticker": "KOD",
+    "exchange": "LSE",
+    "country": "UK",
+    "website": "https://www.kodalminerals.com",
+    "description": "Lithium and gold explorer with Bougouni project in Mali",
+    "market_cap": 145000000,
+    "urls": ["https://www.kodalminerals.com", "https://www.lse.co.uk/SharePrice.html?shareprice=KOD"]
+  },
+  {
+    "name": "Savannah Resources plc",
+    "ticker": "SAV",
+    "exchange": "LSE",
+    "country": "UK",
+    "website": "https://www.savannah-resources.com",
+    "description": "Lithium developer with Barroso project in Portugal",
+    "market_cap": 85000000,
+    "urls": ["https://www.savannah-resources.com", "https://www.lse.co.uk/SharePrice.html?shareprice=SAV"]
+  },
+  {
+    "name": "Alpha Lithium Corporation",
+    "ticker": "APHE",
+    "exchange": "TSXV",
+    "country": "Canada",
+    "website": "https://alphalithium.com",
+    "description": "Lithium developer with Tolillar project in Argentina",
+    "market_cap": 42000000,
+    "urls": ["https://alphalithium.com", "https://finance.yahoo.com/quote/APHE.V"]
+  },
+  {
+    "name": "Codelco",
+    "ticker": "CODELCO",
+    "exchange": "Private",
+    "country": "Chile",
+    "website": "https://www.codelco.com",
+    "description": "State-owned Chilean company and world's largest copper producer",
+    "market_cap": 35000000000,
+    "urls": ["https://www.codelco.com"]
+  }
+]
