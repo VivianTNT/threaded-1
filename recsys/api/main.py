@@ -53,21 +53,29 @@ except Exception as e:
 ############################################
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"[api] Loading CLIP on {device} ...")
+clip_model = None
+clip_processor = None
 
-clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-clip_model.eval()
+
+def get_clip_components():
+    global clip_model, clip_processor
+    if clip_model is None or clip_processor is None:
+        print(f"[api] Loading CLIP on {device} ...")
+        clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+        clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        clip_model.eval()
+    return clip_model, clip_processor
 
 
 ############################################
 # Utility: embed an uploaded image
 ############################################
 def embed_image_file(file: UploadFile) -> np.ndarray:
+    model, processor = get_clip_components()
     image = Image.open(io.BytesIO(file.file.read())).convert("RGB")
-    inputs = clip_processor(images=image, return_tensors="pt").to(device)
+    inputs = processor(images=image, return_tensors="pt").to(device)
     with torch.no_grad():
-        emb = clip_model.get_image_features(**inputs)
+        emb = model.get_image_features(**inputs)
         emb = emb / emb.norm(dim=-1, keepdim=True)
     return emb.cpu().numpy().flatten().astype("float32")
 
