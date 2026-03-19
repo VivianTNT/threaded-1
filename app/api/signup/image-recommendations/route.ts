@@ -22,6 +22,15 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 const SIGNUP_SAMPLE_SIZE = DEFAULT_SIGNUP_SAMPLE_SIZE
 const SIGNUP_MIN_LIKES = DEFAULT_SIGNUP_MIN_LIKES
 const SIGNUP_TOP_K = DEFAULT_SIGNUP_TOP_K
+const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
+const SIGNUP_HYBRID_CATALOG_LIMIT = 1000
+
+type HybridCatalogResult = { product_id: string | number; score: number }
+
+function getRecsysBaseUrl(): string {
+  const raw = process.env.RECSYS_API_URL || DEFAULT_RECSYS_BASE_URL
+  return raw.replace(/\/+$/, '')
+}
 
 async function loadAllImageEmbeddings(): Promise<Map<string, number[]>> {
   const { data, error } = await supabase
@@ -55,6 +64,64 @@ async function loadProductsByIds(ids: string[]): Promise<ProductRow[]> {
     throw new Error(`Failed to load products: ${error.message}`)
   }
   return (data || []) as ProductRow[]
+}
+
+async function loadLatestProductsForHybrid(limit: number): Promise<ProductRow[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('id,name,brand_name,image_url,price,product_url,category,description')
+    .not('image_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    throw new Error(`Failed to load hybrid signup catalog: ${error.message}`)
+  }
+
+  return (data || []) as ProductRow[]
+}
+
+async function scoreProductsWithHybridCatalogApi(
+  likedProducts: ProductRow[],
+  catalogProducts: ProductRow[],
+  excludedIds: Set<string>,
+  topK: number
+): Promise<Array<{ id: string; score: number }>> {
+  if (!likedProducts.length || !catalogProducts.length) return []
+
+  const response = await fetch(`${getRecsysBaseUrl()}/recommend/hybrid/catalog`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      liked_products: likedProducts.map((p) => ({
+        id: p.id,
+        title: p.name || '',
+        name: p.name || '',
+        description: p.description || '',
+      })),
+      catalog_products: catalogProducts
+        .filter((p) => !excludedIds.has(String(p.id)))
+        .map((p) => ({
+          id: p.id,
+          title: p.name || '',
+          name: p.name || '',
+          description: p.description || '',
+        })),
+      top_k: topK,
+      strategy: 'hybrid',
+      exclude_ids: Array.from(excludedIds),
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Hybrid API error (${response.status})`)
+  }
+
+  const json = await response.json()
+  const recs: HybridCatalogResult[] = Array.isArray(json?.recommendations) ? json.recommendations : []
+  return recs
+    .map((row) => ({ id: String(row.product_id), score: Number(row.score) }))
+    .filter((row) => row.id && Number.isFinite(row.score))
 }
 
 export async function GET(request: Request) {
@@ -111,6 +178,53 @@ export async function POST(request: Request) {
       )
     }
 
+    const likedProductsRaw = await loadProductsByIds(likedProductIds)
+    const excluded = new Set<string>([...likedProductIds, ...shownProductIds])
+
+    if (likedProductsRaw.length > 0) {
+      try {
+        const hybridCatalog = await loadLatestProductsForHybrid(SIGNUP_HYBRID_CATALOG_LIMIT)
+        const hybridScored = await scoreProductsWithHybridCatalogApi(
+          likedProductsRaw,
+          hybridCatalog,
+          excluded,
+          topK
+        )
+
+        if (hybridScored.length > 0) {
+          const recProductsRaw = await loadProductsByIds(hybridScored.map((s) => s.id))
+          const recMap = new Map(recProductsRaw.map((p) => [p.id, p]))
+          const recommendations = hybridScored
+            .map((r) => {
+              const row = recMap.get(r.id)
+              if (!row) return null
+              return {
+                ...toProductCard(row),
+                similarity: r.score,
+              }
+            })
+            .filter((v): v is ReturnType<typeof toProductCard> & { similarity: number } => v !== null)
+
+          return NextResponse.json({
+            success: true,
+            likedProducts: likedProductsRaw.map(toProductCard),
+            recommendations,
+            recommendedProductIds: recommendations.map((r) => r.id),
+            userImageEmbeddingAvg: null,
+            embeddingDim: null,
+            mode: 'signup_hybrid_api',
+            tunables: {
+              sampleSize: SIGNUP_SAMPLE_SIZE,
+              minLikes: SIGNUP_MIN_LIKES,
+              topK,
+            },
+          })
+        }
+      } catch (error) {
+        console.error('[signup/image-recommendations][POST] hybrid API failed, falling back:', error)
+      }
+    }
+
     const embeddingMap = await loadAllImageEmbeddings()
     const likedVecs = likedProductIds
       .map((id) => embeddingMap.get(id))
@@ -128,8 +242,6 @@ export async function POST(request: Request) {
     const userVec = l2Normalize(
       modelUserVec && modelUserVec.length === sourceDim ? modelUserVec : meanVectors(likedVecs)
     )
-    const excluded = new Set<string>([...likedProductIds, ...shownProductIds])
-
     const candidates: Array<{ id: string; embedding: number[] }> = []
     for (const [productId, vec] of embeddingMap.entries()) {
       if (excluded.has(productId)) continue
@@ -150,7 +262,6 @@ export async function POST(request: Request) {
 
     const topScored = scored.slice(0, topK)
 
-    const likedProductsRaw = await loadProductsByIds(likedProductIds)
     const recProductsRaw = await loadProductsByIds(topScored.map((s) => s.id))
 
     const likedMap = new Map(likedProductsRaw.map((p) => [p.id, p]))

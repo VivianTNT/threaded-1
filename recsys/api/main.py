@@ -34,6 +34,19 @@ print("[api] Loading H&M FAISS index...")
 faiss_pack = joblib.load(ART / "faiss_items_hm.joblib")
 faiss_index = faiss_pack["index"]
 item_ids = faiss_pack["item_ids"]
+item_X = faiss_pack["X"]
+row_map = faiss_pack["row_map"]
+
+print("[api] Loading user_vectors_hm...")
+user_vectors = joblib.load(ART / "user_vectors_hm.joblib")
+
+# Optional: Hybrid ranker (Mahout + Two-Tower). Falls back to content if missing.
+score_hybrid = None
+try:
+    from recsys.src.models.hybrid_ranker import score_hybrid
+    print("[api] Hybrid ranker loaded.")
+except Exception as e:
+    print(f"[api] Hybrid ranker not available ({e}). Using content/collab only.")
 
 ############################################
 # Load CLIP for image embedding
@@ -172,8 +185,30 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
     strategy: "content" (FAISS), "collab" (ALS), or "hybrid" (content+TwoTower).
     Default: content. If collab requested but ALS not available, falls back to content.
     """
-    from recsys.src.recommend_engine import recommend_for_user
-    results = recommend_for_user(user_id, top_k=top_k, strategy=strategy)
+    if strategy in ("content", "collab"):
+        from recsys.src.recommend_engine import recommend_for_user
+        results = recommend_for_user(user_id, top_k=top_k, strategy=strategy)
+        return {"recommendations": results}
+
+    # Hybrid path (when score_hybrid is available and strategy=hybrid)
+    if strategy == "hybrid" and score_hybrid is not None and user_id in user_vectors:
+        vec = user_vectors[user_id].astype("float32")
+        candidates = faiss_search(vec, k=100)
+        ranked_results = []
+        for res in candidates:
+            item_id = res["item_id"]
+            # hybrid_ranker.score_hybrid currently combines content + two-tower
+            h_score = score_hybrid(user_id, item_id, w_content=0.5, w_tt=0.5)
+            final_score = h_score if h_score is not None else res["score"]
+            ranked_results.append({"item_id": item_id, "score": float(final_score)})
+        ranked_results.sort(key=lambda x: x["score"], reverse=True)
+        return {"recommendations": ranked_results[:top_k]}
+
+    # Fallback: content-only
+    if user_id not in user_vectors:
+        return {"recommendations": []}
+    vec = user_vectors[user_id].astype("float32")
+    results = faiss_search(vec, k=top_k)
     return {"recommendations": results}
 
 
@@ -182,6 +217,10 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
 ############################################
 @app.get("/recommend/item/{item_id}")
 def recommend_item(item_id: int, top_k: int = 20):
-    from recsys.src.recommend_engine import recommend_for_item
-    results = recommend_for_item(item_id, top_k=top_k)
+    if item_id not in row_map:
+        return {"recommendations": []}
+
+    idx = row_map[item_id]
+    vec = item_X[idx].astype("float32")
+    results = faiss_search(vec, k=top_k)
     return {"recommendations": results}

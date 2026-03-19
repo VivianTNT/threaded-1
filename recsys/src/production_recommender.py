@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import pandas as pd
 
-from recsys.src.embeddings import build_item_matrix
+from recsys.src.embeddings import build_faiss_index, build_item_matrix
 
 ART = Path("recsys/artifacts")
 DATA = Path("recsys/data")
@@ -59,6 +59,8 @@ class ContentTwoTower(nn.Module):
 
 _model = None
 _device = None
+DEFAULT_CANDIDATE_MULTIPLIER = 10
+DEFAULT_MIN_CANDIDATES = 100
 
 def get_model():
     global _model, _device
@@ -163,6 +165,15 @@ def recommend(
     # Embed catalog
     catalog_embs = embed_products(catalog_products)
     
+    # Retrieve a reasonably small candidate set with FAISS, then rerank.
+    candidate_k = min(
+        len(catalog_ids),
+        max(top_k * DEFAULT_CANDIDATE_MULTIPLIER, DEFAULT_MIN_CANDIDATES),
+    )
+    faiss_index = build_faiss_index(catalog_embs)
+    scores, indices = faiss_index.search(user_vec.reshape(1, -1).astype("float32"), candidate_k)
+    candidate_pairs = [(int(idx), float(score)) for idx, score in zip(indices[0], scores[0]) if idx >= 0]
+
     # Score function
     if strategy == "content":
         score_fn = lambda u, i: score_content(u, i)
@@ -171,23 +182,16 @@ def recommend(
     else:  # hybrid
         score_fn = lambda u, i: score_hybrid(u, i)
     
-    # Score all products
-    scores = []
-    for i_vec in catalog_embs:
-        scores.append(score_fn(user_vec, i_vec))
-    scores = np.array(scores)
-    
-    # Rank and filter
+    # Rerank the FAISS candidates.
     exclude_set = set(exclude_ids) if exclude_ids else set()
-    order = np.argsort(scores)[::-1]
-    
     results = []
-    for i in order:
+    for i, faiss_score in candidate_pairs:
         if len(results) >= top_k:
             break
         pid = catalog_ids[i]
         if pid not in exclude_set:
-            results.append({"product_id": pid, "score": float(scores[i])})
+            final_score = faiss_score if strategy == "content" else score_fn(user_vec, catalog_embs[i])
+            results.append({"product_id": pid, "score": float(final_score)})
     
     return results
 

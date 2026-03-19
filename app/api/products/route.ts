@@ -22,6 +22,10 @@ type ProductEmbeddingRow = {
 
 type ScoredId = { id: string; score: number }
 type HybridCatalogResult = { product_id: string | number; score: number }
+type RecommendationEngine =
+  | 'faiss_two_tower_hybrid'
+  | 'two_tower_or_cosine_fallback'
+  | 'latest_products_fallback'
 
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
 const HYBRID_CATALOG_LIMIT = 1000
@@ -266,6 +270,7 @@ export async function GET(request: Request) {
               limit,
               offset,
               mode: 'personalized_hybrid_api',
+              engine: 'faiss_two_tower_hybrid' satisfies RecommendationEngine,
             })
           }
         } catch (error) {
@@ -302,6 +307,7 @@ export async function GET(request: Request) {
           limit,
           offset,
           mode: 'personalized_image',
+          engine: 'two_tower_or_cosine_fallback' satisfies RecommendationEngine,
         })
       }
     }
@@ -318,6 +324,7 @@ export async function GET(request: Request) {
       limit,
       offset,
       mode: 'latest_fallback',
+      engine: 'latest_products_fallback' satisfies RecommendationEngine,
     })
   } catch (error: any) {
     console.error('Products API error:', error)

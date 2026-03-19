@@ -23,6 +23,7 @@ export default function Page() {
   const [products, setProducts] = React.useState<FashionProduct[]>([])
   const [likedProducts, setLikedProducts] = React.useState<FashionProduct[]>([])
   const [recommendationMode, setRecommendationMode] = React.useState<string>('latest_fallback')
+  const [recommendationEngine, setRecommendationEngine] = React.useState<string>('latest_products_fallback')
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
   const allProducts = React.useMemo(() => {
@@ -46,6 +47,9 @@ export default function Page() {
           setProducts(Array.isArray(data.products) ? data.products : [])
           setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
           setRecommendationMode(typeof data.mode === 'string' ? data.mode : 'latest_fallback')
+          setRecommendationEngine(
+            typeof data.engine === 'string' ? data.engine : 'latest_products_fallback'
+          )
         } else {
           console.error('Failed to fetch products:', data.message)
         }
@@ -84,6 +88,16 @@ export default function Page() {
       .slice(0, 4)
   }
 
+  const engineBadgeLabel =
+    recommendationEngine === 'faiss_two_tower_hybrid'
+      ? 'FAISS + two-tower active'
+      : recommendationEngine === 'two_tower_or_cosine_fallback'
+        ? 'Fallback ranking active'
+        : 'Latest-products fallback'
+
+  const engineBadgeVariant =
+    recommendationEngine === 'faiss_two_tower_hybrid' ? 'default' : 'outline'
+
   return (
     <ChatLayout>
       <SidebarProvider
@@ -119,11 +133,15 @@ export default function Page() {
                               ? 'Personalized by hybrid ranker'
                               : 'Personalized by image likes'}
                           </Badge>
+                          <Badge variant={engineBadgeVariant}>
+                            {engineBadgeLabel}
+                          </Badge>
                           <Badge variant="outline">{products.length} recommendations</Badge>
                         </>
                       ) : (
                         <>
                           <Badge variant="secondary">Latest products</Badge>
+                          <Badge variant={engineBadgeVariant}>{engineBadgeLabel}</Badge>
                           <Badge variant="outline">Set likes at signup for personalization</Badge>
                         </>
                       )}
