@@ -12,10 +12,12 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ShoppingBag, Trash2, Minus, Plus, ExternalLink, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function CartPage() {
   const { user, isLoading } = useRequireAuth()
   const { items, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
+  const [isCheckingOut, setIsCheckingOut] = React.useState(false)
 
   if (isLoading) {
     return (
@@ -31,6 +33,46 @@ export default function CartPage() {
 
   const total = getCartTotal()
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+
+  const handleCheckout = async () => {
+    if (!items.length || isCheckingOut) return
+
+    setIsCheckingOut(true)
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userEmail: user?.email || null,
+          items: items.map((item) => ({
+            id: item.product.id,
+            name: item.product.name,
+            brand: item.product.brand,
+            image_url: item.product.image_url,
+            product_url: item.product.product_url,
+            price: item.product.price,
+            quantity: item.quantity,
+            currency: item.product.currency || 'USD',
+            selectedSize: item.selectedSize || null,
+          })),
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok || !data?.success || typeof data?.checkoutUrl !== 'string') {
+        throw new Error(data?.message || 'Failed to start checkout.')
+      }
+
+      window.location.href = data.checkoutUrl
+    } catch (error: any) {
+      toast.error('Checkout failed', {
+        description: error?.message || 'Unable to create Stripe checkout session.',
+      })
+      setIsCheckingOut(false)
+    }
+  }
 
   return (
     <ChatLayout>
@@ -223,8 +265,8 @@ export default function CartPage() {
                           </div>
 
                           <div className="space-y-3">
-                            <Button className="w-full" size="lg" disabled>
-                              Proceed to Checkout
+                            <Button className="w-full" size="lg" onClick={handleCheckout} disabled={isCheckingOut}>
+                              {isCheckingOut ? 'Redirecting...' : 'Proceed to Checkout'}
                             </Button>
                             <Button variant="outline" className="w-full" asChild>
                               <a href="/">Continue Shopping</a>
@@ -232,7 +274,7 @@ export default function CartPage() {
                           </div>
 
                           <p className="text-xs text-muted-foreground text-center mt-4">
-                            This is a demo. Checkout is not functional.
+                            Secure checkout powered by Stripe.
                           </p>
                         </Card>
                       </div>
