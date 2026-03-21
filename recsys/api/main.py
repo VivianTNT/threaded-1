@@ -70,11 +70,11 @@ def artifact_status() -> dict[str, bool]:
     return {name: path.exists() for name, path in REQUIRED_ARTIFACTS.items()}
 
 
-def ensure_retrieval_assets_loaded():
-    global faiss_pack, faiss_index, item_ids, item_X, row_map, user_vectors
+def ensure_faiss_assets_loaded():
+    global faiss_pack, faiss_index, item_ids, item_X, row_map
 
     status = artifact_status()
-    missing = [name for name in ("faiss_pack", "user_vectors") if not status[name]]
+    missing = [name for name in ("faiss_pack",) if not status[name]]
     if missing:
         raise HTTPException(
             status_code=503,
@@ -92,6 +92,22 @@ def ensure_retrieval_assets_loaded():
         item_ids = faiss_pack["item_ids"]
         item_X = faiss_pack["X"]
         row_map = faiss_pack["row_map"]
+
+
+def ensure_user_vectors_loaded():
+    global user_vectors
+
+    ensure_faiss_assets_loaded()
+    status = artifact_status()
+    if not status["user_vectors"]:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "User-vector artifacts are not ready.",
+                "missing_artifacts": ["user_vectors"],
+                "artifact_status": status,
+            },
+        )
 
     if user_vectors is None:
         print("[api] Loading user_vectors_hm...")
@@ -115,7 +131,7 @@ def embed_image_file(file: UploadFile) -> np.ndarray:
 # Utility: run FAISS search (Retrieval)
 ############################################
 def faiss_search(vec: np.ndarray, k: int = 20):
-    ensure_retrieval_assets_loaded()
+    ensure_faiss_assets_loaded()
     vec = vec.reshape(1, -1).astype("float32")
     scores, indices = faiss_index.search(vec, k)
     results = []
@@ -134,7 +150,9 @@ def health():
     status = artifact_status()
     return {
         "status": "ok",
-        "recommender_ready": all(status.values()),
+        "catalog_ready": status["faiss_pack"] and status["two_tower_model"],
+        "user_recommendation_ready": status["faiss_pack"] and status["user_vectors"],
+        "recommender_ready": status["faiss_pack"] and status["two_tower_model"],
         "artifact_status": status,
     }
 
@@ -230,7 +248,7 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
     strategy: "content" (FAISS), "collab" (ALS), or "hybrid" (content+TwoTower).
     Default: content. If collab requested but ALS not available, falls back to content.
     """
-    ensure_retrieval_assets_loaded()
+    ensure_user_vectors_loaded()
 
     if strategy in ("content", "collab"):
         from recsys.src.recommend_engine import recommend_for_user
