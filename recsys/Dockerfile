@@ -2,13 +2,13 @@ FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    HF_HOME=/app/.cache/huggingface \
-    TRANSFORMERS_CACHE=/app/.cache/huggingface
+    HF_HOME=/app/.cache/huggingface
 
 WORKDIR /app
 
 COPY recsys/requirements-api.txt /tmp/requirements-api.txt
-RUN pip install -r /tmp/requirements-api.txt
+RUN pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 && \
+    pip install -r /tmp/requirements-api.txt
 
 COPY recsys /app/recsys
 RUN chmod +x /app/recsys/start-api.sh

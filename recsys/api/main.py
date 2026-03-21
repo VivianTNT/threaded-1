@@ -6,8 +6,6 @@ import joblib
 from PIL import Image
 import io
 from pathlib import Path
-import torch
-from transformers import CLIPProcessor, CLIPModel
 from typing import Union
 
 # Paths
@@ -51,14 +49,36 @@ except Exception as e:
 # Load CLIP for image embedding
 ############################################
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = None
+torch = None
+CLIPModel = None
+CLIPProcessor = None
 clip_model = None
 clip_processor = None
 
 
+def get_torch_module():
+    global torch
+    if torch is None:
+        import torch as torch_module
+
+        torch = torch_module
+    return torch
+
+
 def get_clip_components():
-    global clip_model, clip_processor
+    global clip_model, clip_processor, device, CLIPModel, CLIPProcessor
     if clip_model is None or clip_processor is None:
+        torch_module = get_torch_module()
+        if CLIPModel is None or CLIPProcessor is None:
+            from transformers import CLIPProcessor as clip_processor_cls, CLIPModel as clip_model_cls
+
+            CLIPModel = clip_model_cls
+            CLIPProcessor = clip_processor_cls
+
+        if device is None:
+            device = "cuda" if torch_module.cuda.is_available() else "cpu"
+
         print(f"[api] Loading CLIP on {device} ...")
         clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
         clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
@@ -119,9 +139,10 @@ def ensure_user_vectors_loaded():
 ############################################
 def embed_image_file(file: UploadFile) -> np.ndarray:
     model, processor = get_clip_components()
+    torch_module = get_torch_module()
     image = Image.open(io.BytesIO(file.file.read())).convert("RGB")
     inputs = processor(images=image, return_tensors="pt").to(device)
-    with torch.no_grad():
+    with torch_module.no_grad():
         emb = model.get_image_features(**inputs)
         emb = emb / emb.norm(dim=-1, keepdim=True)
     return emb.cpu().numpy().flatten().astype("float32")
