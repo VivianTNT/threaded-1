@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import numpy as np
@@ -26,19 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-############################################
-# Load embeddings + FAISS (for retrieval)
-############################################
+REQUIRED_ARTIFACTS = {
+    "faiss_pack": ART / "faiss_items_hm.joblib",
+    "user_vectors": ART / "user_vectors_hm.joblib",
+    "two_tower_model": ART / "content_two_tower_hm.pt",
+}
 
-print("[api] Loading H&M FAISS index...")
-faiss_pack = joblib.load(ART / "faiss_items_hm.joblib")
-faiss_index = faiss_pack["index"]
-item_ids = faiss_pack["item_ids"]
-item_X = faiss_pack["X"]
-row_map = faiss_pack["row_map"]
-
-print("[api] Loading user_vectors_hm...")
-user_vectors = joblib.load(ART / "user_vectors_hm.joblib")
+faiss_pack = None
+faiss_index = None
+item_ids = None
+item_X = None
+row_map = None
+user_vectors = None
 
 # Optional: Hybrid ranker (Mahout + Two-Tower). Falls back to content if missing.
 score_hybrid = None
@@ -67,6 +66,38 @@ def get_clip_components():
     return clip_model, clip_processor
 
 
+def artifact_status() -> dict[str, bool]:
+    return {name: path.exists() for name, path in REQUIRED_ARTIFACTS.items()}
+
+
+def ensure_retrieval_assets_loaded():
+    global faiss_pack, faiss_index, item_ids, item_X, row_map, user_vectors
+
+    status = artifact_status()
+    missing = [name for name in ("faiss_pack", "user_vectors") if not status[name]]
+    if missing:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Recommender artifacts are not ready.",
+                "missing_artifacts": missing,
+                "artifact_status": status,
+            },
+        )
+
+    if faiss_pack is None:
+        print("[api] Loading H&M FAISS index...")
+        faiss_pack = joblib.load(REQUIRED_ARTIFACTS["faiss_pack"])
+        faiss_index = faiss_pack["index"]
+        item_ids = faiss_pack["item_ids"]
+        item_X = faiss_pack["X"]
+        row_map = faiss_pack["row_map"]
+
+    if user_vectors is None:
+        print("[api] Loading user_vectors_hm...")
+        user_vectors = joblib.load(REQUIRED_ARTIFACTS["user_vectors"])
+
+
 ############################################
 # Utility: embed an uploaded image
 ############################################
@@ -84,6 +115,7 @@ def embed_image_file(file: UploadFile) -> np.ndarray:
 # Utility: run FAISS search (Retrieval)
 ############################################
 def faiss_search(vec: np.ndarray, k: int = 20):
+    ensure_retrieval_assets_loaded()
     vec = vec.reshape(1, -1).astype("float32")
     scores, indices = faiss_index.search(vec, k)
     results = []
@@ -99,7 +131,12 @@ def faiss_search(vec: np.ndarray, k: int = 20):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    status = artifact_status()
+    return {
+        "status": "ok",
+        "recommender_ready": all(status.values()),
+        "artifact_status": status,
+    }
 
 
 ############################################
@@ -193,6 +230,8 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
     strategy: "content" (FAISS), "collab" (ALS), or "hybrid" (content+TwoTower).
     Default: content. If collab requested but ALS not available, falls back to content.
     """
+    ensure_retrieval_assets_loaded()
+
     if strategy in ("content", "collab"):
         from recsys.src.recommend_engine import recommend_for_user
         results = recommend_for_user(user_id, top_k=top_k, strategy=strategy)
@@ -225,6 +264,7 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
 ############################################
 @app.get("/recommend/item/{item_id}")
 def recommend_item(item_id: int, top_k: int = 20):
+    ensure_retrieval_assets_loaded()
     if item_id not in row_map:
         return {"recommendations": []}
 
