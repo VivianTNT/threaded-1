@@ -124,15 +124,11 @@ def score_two_tower(user_vec: np.ndarray, item_vec: np.ndarray) -> float:
 
 def score_hybrid(user_vec: np.ndarray, item_vec: np.ndarray,
                  w_content=0.5, w_tt=0.5) -> float:
-    """Hybrid: content + Two-Tower (uses hybrid_ranker if available)."""
-    try:
-        from recsys.src.models.hybrid_ranker import score_from_vectors
-        return score_from_vectors(user_vec, item_vec, w_content, w_tt)
-    except Exception:
-        s_content = score_content(user_vec, item_vec)
-        s_tt = score_two_tower(user_vec, item_vec)
-        s_tt_norm = 2 * (s_tt - 0.5)
-        return w_content * s_content + w_tt * s_tt_norm
+    """Hybrid: content + local Two-Tower score."""
+    s_content = score_content(user_vec, item_vec)
+    s_tt = score_two_tower(user_vec, item_vec)
+    s_tt_norm = 2 * (s_tt - 0.5)
+    return w_content * s_content + w_tt * s_tt_norm
 
 
 def recommend(

@@ -39,11 +39,20 @@ user_vectors = None
 
 # Optional: Hybrid ranker (Mahout + Two-Tower). Falls back to content if missing.
 score_hybrid = None
-try:
-    from recsys.src.models.hybrid_ranker import score_hybrid
-    print("[api] Hybrid ranker loaded.")
-except Exception as e:
-    print(f"[api] Hybrid ranker not available ({e}). Using content/collab only.")
+
+
+def get_hybrid_score():
+    global score_hybrid
+    if score_hybrid is None:
+        try:
+            from recsys.src.models.hybrid_ranker import score_hybrid as hybrid_score_fn
+
+            score_hybrid = hybrid_score_fn
+            print("[api] Hybrid ranker loaded.")
+        except Exception as e:
+            print(f"[api] Hybrid ranker not available ({e}). Using content/collab only.")
+            score_hybrid = False
+    return score_hybrid if score_hybrid is not False else None
 
 ############################################
 # Load CLIP for image embedding
@@ -277,14 +286,15 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
         return {"recommendations": results}
 
     # Hybrid path (when score_hybrid is available and strategy=hybrid)
-    if strategy == "hybrid" and score_hybrid is not None and user_id in user_vectors:
+    hybrid_score = get_hybrid_score()
+    if strategy == "hybrid" and hybrid_score is not None and user_id in user_vectors:
         vec = user_vectors[user_id].astype("float32")
         candidates = faiss_search(vec, k=100)
         ranked_results = []
         for res in candidates:
             item_id = res["item_id"]
             # hybrid_ranker.score_hybrid currently combines content + two-tower
-            h_score = score_hybrid(user_id, item_id, w_content=0.5, w_tt=0.5)
+            h_score = hybrid_score(user_id, item_id, w_content=0.5, w_tt=0.5)
             final_score = h_score if h_score is not None else res["score"]
             ranked_results.append({"item_id": item_id, "score": float(final_score)})
         ranked_results.sort(key=lambda x: x["score"], reverse=True)
