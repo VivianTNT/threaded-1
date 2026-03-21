@@ -7,7 +7,9 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 COPY recsys/requirements-api.txt /tmp/requirements-api.txt
-RUN pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 && \
+RUN pip install --upgrade pip && \
+    pip install typing-extensions>=4.10.0 && \
+    pip install --extra-index-url https://download.pytorch.org/whl/cpu torch==2.8.0 && \
     pip install -r /tmp/requirements-api.txt
 
 COPY recsys /app/recsys
