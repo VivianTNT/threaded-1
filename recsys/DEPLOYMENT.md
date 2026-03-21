@@ -20,11 +20,8 @@ At minimum, the service needs these files mounted at `recsys/artifacts/`:
 - `faiss_items_hm.joblib`
 - `content_two_tower_hm.pt`
 
-For the legacy `/recommend/user/{user_id}` path, also mount:
-
-- `user_vectors_hm.joblib`
-
-If you want the full hybrid/user/item paths available, mount the rest of the recommender artifacts too.
+This Render deployment disables the legacy `/recommend/user/{user_id}` path to keep memory use low.
+If you later need that path, add `user_vectors_hm.joblib` and re-enable the endpoint.
 
 ## Docker deploy
 

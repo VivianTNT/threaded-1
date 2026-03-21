@@ -26,7 +26,6 @@ app.add_middleware(
 
 REQUIRED_ARTIFACTS = {
     "faiss_pack": ART / "faiss_items_hm.joblib",
-    "user_vectors": ART / "user_vectors_hm.joblib",
     "two_tower_model": ART / "content_two_tower_hm.pt",
 }
 
@@ -35,7 +34,6 @@ faiss_index = None
 item_ids = None
 item_X = None
 row_map = None
-user_vectors = None
 
 # Optional: Hybrid ranker (Mahout + Two-Tower). Falls back to content if missing.
 score_hybrid = None
@@ -123,26 +121,6 @@ def ensure_faiss_assets_loaded():
         row_map = faiss_pack["row_map"]
 
 
-def ensure_user_vectors_loaded():
-    global user_vectors
-
-    ensure_faiss_assets_loaded()
-    status = artifact_status()
-    if not status["user_vectors"]:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "message": "User-vector artifacts are not ready.",
-                "missing_artifacts": ["user_vectors"],
-                "artifact_status": status,
-            },
-        )
-
-    if user_vectors is None:
-        print("[api] Loading user_vectors_hm...")
-        user_vectors = joblib.load(REQUIRED_ARTIFACTS["user_vectors"])
-
-
 ############################################
 # Utility: embed an uploaded image
 ############################################
@@ -181,7 +159,6 @@ def health():
     return {
         "status": "ok",
         "catalog_ready": status["faiss_pack"] and status["two_tower_model"],
-        "user_recommendation_ready": status["faiss_pack"] and status["user_vectors"],
         "recommender_ready": status["faiss_pack"] and status["two_tower_model"],
         "artifact_status": status,
     }
@@ -273,39 +250,13 @@ def recommend_hybrid_catalog(req: HybridCatalogRequest):
 ############################################
 @app.get("/recommend/user/{user_id}")
 def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
-    """
-    Recommend items for a user.
-    strategy: "content" (FAISS), "collab" (ALS), or "hybrid" (content+TwoTower).
-    Default: content. If collab requested but ALS not available, falls back to content.
-    """
-    ensure_user_vectors_loaded()
-
-    if strategy in ("content", "collab"):
-        from recsys.src.recommend_engine import recommend_for_user
-        results = recommend_for_user(user_id, top_k=top_k, strategy=strategy)
-        return {"recommendations": results}
-
-    # Hybrid path (when score_hybrid is available and strategy=hybrid)
-    hybrid_score = get_hybrid_score()
-    if strategy == "hybrid" and hybrid_score is not None and user_id in user_vectors:
-        vec = user_vectors[user_id].astype("float32")
-        candidates = faiss_search(vec, k=100)
-        ranked_results = []
-        for res in candidates:
-            item_id = res["item_id"]
-            # hybrid_ranker.score_hybrid currently combines content + two-tower
-            h_score = hybrid_score(user_id, item_id, w_content=0.5, w_tt=0.5)
-            final_score = h_score if h_score is not None else res["score"]
-            ranked_results.append({"item_id": item_id, "score": float(final_score)})
-        ranked_results.sort(key=lambda x: x["score"], reverse=True)
-        return {"recommendations": ranked_results[:top_k]}
-
-    # Fallback: content-only
-    if user_id not in user_vectors:
-        return {"recommendations": []}
-    vec = user_vectors[user_id].astype("float32")
-    results = faiss_search(vec, k=top_k)
-    return {"recommendations": results}
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "message": "The user_id recommendation endpoint is disabled in this deployment.",
+            "reason": "This Render deployment only ships the catalog recommender artifacts.",
+        },
+    )
 
 
 ############################################
@@ -313,7 +264,7 @@ def recommend_user(user_id: int, top_k: int = 20, strategy: str = "content"):
 ############################################
 @app.get("/recommend/item/{item_id}")
 def recommend_item(item_id: int, top_k: int = 20):
-    ensure_retrieval_assets_loaded()
+    ensure_faiss_assets_loaded()
     if item_id not in row_map:
         return {"recommendations": []}
 
