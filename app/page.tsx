@@ -91,12 +91,17 @@ export default function Page() {
   const engineBadgeLabel =
     recommendationEngine === 'faiss_two_tower_hybrid'
       ? 'FAISS + two-tower active'
+      : recommendationEngine === 'faiss_two_tower_image_hybrid'
+        ? 'Text + image + two-tower active'
       : recommendationEngine === 'two_tower_or_cosine_fallback'
         ? 'Fallback ranking active'
         : 'Latest-products fallback'
 
   const engineBadgeVariant =
-    recommendationEngine === 'faiss_two_tower_hybrid' ? 'default' : 'outline'
+    recommendationEngine === 'faiss_two_tower_hybrid' ||
+    recommendationEngine === 'faiss_two_tower_image_hybrid'
+      ? 'default'
+      : 'outline'
 
   return (
     <ChatLayout>

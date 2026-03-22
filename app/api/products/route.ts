@@ -24,6 +24,7 @@ type ScoredId = { id: string; score: number }
 type HybridCatalogResult = { product_id: string | number; score: number }
 type RecommendationEngine =
   | 'faiss_two_tower_hybrid'
+  | 'faiss_two_tower_image_hybrid'
   | 'two_tower_or_cosine_fallback'
   | 'latest_products_fallback'
 
@@ -111,6 +112,78 @@ function toRecommendationScore(score: number): number {
   // Hybrid score is often centered near [-1, 1].
   const normalized = (score + 1) * 50
   return Math.max(0, Math.min(100, Math.round(normalized)))
+}
+
+function normalizeHybridScore(score: number): number {
+  return Math.max(0, Math.min(1, (score + 1) / 2))
+}
+
+function denormalizeHybridScore(score: number): number {
+  return Math.max(-1, Math.min(1, score * 2 - 1))
+}
+
+async function getProductEmbeddingsByIds(ids: string[]): Promise<Map<string, number[]>> {
+  if (!ids.length) return new Map()
+
+  const { data, error } = await supabase
+    .from('product_embeddings')
+    .select('product_id,image_embedding')
+    .in('product_id', ids)
+    .not('image_embedding', 'is', null)
+
+  if (error) {
+    throw new Error(`Failed to load product embeddings by ids: ${error.message}`)
+  }
+
+  const out = new Map<string, number[]>()
+  for (const row of (data || []) as ProductEmbeddingRow[]) {
+    const vec = parseVector(row.image_embedding)
+    if (!vec || !vec.length) continue
+    out.set(String(row.product_id), l2Normalize(vec))
+  }
+  return out
+}
+
+async function rerankHybridResultsWithImageSignals(
+  hybridScored: ScoredId[],
+  likedIds: string[]
+): Promise<ScoredId[]> {
+  if (!hybridScored.length || !likedIds.length) return hybridScored
+
+  const embeddingIds = Array.from(new Set([...likedIds, ...hybridScored.map((row) => row.id)]))
+  const embeddings = await getProductEmbeddingsByIds(embeddingIds)
+  const likedVectors = likedIds
+    .map((id) => embeddings.get(id))
+    .filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
+
+  if (!likedVectors.length) return hybridScored
+
+  const imageUserVec = l2Normalize(
+    likedVectors[0].map((_, index) => {
+      let sum = 0
+      for (const vec of likedVectors) sum += vec[index]
+      return sum / likedVectors.length
+    })
+  )
+
+  const reranked = hybridScored.map((row) => {
+    const candidateVec = embeddings.get(row.id)
+    if (!candidateVec || candidateVec.length !== imageUserVec.length) {
+      return row
+    }
+
+    const textNorm = normalizeHybridScore(row.score)
+    const imageNorm = normalizeHybridScore(cosineSimilarity(imageUserVec, candidateVec))
+    const fusedNorm = 0.7 * textNorm + 0.3 * imageNorm
+
+    return {
+      id: row.id,
+      score: denormalizeHybridScore(fusedNorm),
+    }
+  })
+
+  reranked.sort((a, b) => b.score - a.score)
+  return reranked
 }
 
 async function scoreProductsWithHybridCatalogApi(
@@ -261,7 +334,8 @@ export async function GET(request: Request) {
           )
 
           if (hybridScored.length > 0) {
-            const pageScored = hybridScored.slice(offset, offset + limit)
+            const multimodalScored = await rerankHybridResultsWithImageSignals(hybridScored, likedIds)
+            const pageScored = multimodalScored.slice(offset, offset + limit)
             const pageIds = pageScored.map((s) => s.id)
             const products = await getProductsByIds(pageIds)
             const scoreMap = new Map(pageScored.map((s) => [s.id, s.score]))
@@ -274,7 +348,7 @@ export async function GET(request: Request) {
                 recommendation_score: typeof sim === 'number' ? toRecommendationScore(sim) : null,
                 recommendation_reason:
                   typeof sim === 'number'
-                    ? 'Recommended by hybrid ranker (content + two-tower).'
+                    ? 'Recommended by multimodal ranker (text, image, and two-tower signals).'
                     : null,
               }
             })
@@ -283,11 +357,11 @@ export async function GET(request: Request) {
               success: true,
               products: fashionProducts,
               likedProducts,
-              total: hybridScored.length,
+              total: multimodalScored.length,
               limit,
               offset,
               mode: 'personalized_hybrid_api',
-              engine: 'faiss_two_tower_hybrid' satisfies RecommendationEngine,
+              engine: 'faiss_two_tower_image_hybrid' satisfies RecommendationEngine,
             })
           }
         } catch (error) {
