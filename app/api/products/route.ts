@@ -31,6 +31,16 @@ type RecommendationEngine =
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
 const HYBRID_CATALOG_LIMIT = 1000
 const HYBRID_API_TIMEOUT_MS = parseInt(process.env.RECSYS_TIMEOUT_MS || '60000', 10)
+const SUPABASE_SELECT_PAGE_SIZE = 500
+const SUPABASE_IN_FILTER_BATCH_SIZE = 200
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+  return chunks
+}
 
 function getRecsysBaseUrl(): string {
   const raw = process.env.RECSYS_API_URL || DEFAULT_RECSYS_BASE_URL
@@ -65,17 +75,26 @@ async function getUserRow(userId: string | null, userEmail: string | null): Prom
 
 async function getProductsByIds(ids: string[]): Promise<PennProduct[]> {
   if (!ids.length) return []
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .in('id', ids)
 
-  if (error) {
-    throw new Error(`Failed to load products by ids: ${error.message}`)
+  const uniqueIds = Array.from(new Set(ids.map(String)))
+  const productsById = new Map<string, PennProduct>()
+
+  for (const chunk of chunkArray(uniqueIds, SUPABASE_IN_FILTER_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', chunk)
+
+    if (error) {
+      throw new Error(`Failed to load products by ids: ${error.message}`)
+    }
+
+    for (const row of (data as PennProduct[] || [])) {
+      productsById.set(String(row.id), row)
+    }
   }
 
-  const map = new Map<string, PennProduct>((data as PennProduct[] || []).map((p) => [p.id, p]))
-  return ids.map((id) => map.get(id)).filter((p): p is PennProduct => Boolean(p))
+  return uniqueIds.map((id) => productsById.get(id)).filter((p): p is PennProduct => Boolean(p))
 }
 
 async function getLatestProducts(limit: number, offset: number): Promise<{ products: PennProduct[]; total: number }> {
@@ -125,22 +144,25 @@ function denormalizeHybridScore(score: number): number {
 async function getProductEmbeddingsByIds(ids: string[]): Promise<Map<string, number[]>> {
   if (!ids.length) return new Map()
 
-  const { data, error } = await supabase
-    .from('product_embeddings')
-    .select('product_id,image_embedding')
-    .in('product_id', ids)
-    .not('image_embedding', 'is', null)
-
-  if (error) {
-    throw new Error(`Failed to load product embeddings by ids: ${error.message}`)
-  }
-
   const out = new Map<string, number[]>()
-  for (const row of (data || []) as ProductEmbeddingRow[]) {
-    const vec = parseVector(row.image_embedding)
-    if (!vec || !vec.length) continue
-    out.set(String(row.product_id), l2Normalize(vec))
+  for (const chunk of chunkArray(Array.from(new Set(ids.map(String))), SUPABASE_IN_FILTER_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from('product_embeddings')
+      .select('product_id,image_embedding')
+      .in('product_id', chunk)
+      .not('image_embedding', 'is', null)
+
+    if (error) {
+      throw new Error(`Failed to load product embeddings by ids: ${error.message}`)
+    }
+
+    for (const row of (data || []) as ProductEmbeddingRow[]) {
+      const vec = parseVector(row.image_embedding)
+      if (!vec || !vec.length) continue
+      out.set(String(row.product_id), l2Normalize(vec))
+    }
   }
+
   return out
 }
 
@@ -265,24 +287,34 @@ async function scoreProductsByUserImageEmbedding(
   excludedIds: Set<string>
 ): Promise<ScoredId[]> {
   const userVec = l2Normalize(userImageEmbedding)
-  const { data, error } = await supabase
-    .from('product_embeddings')
-    .select('product_id,image_embedding')
-    .not('image_embedding', 'is', null)
-
-  if (error) {
-    throw new Error(`Failed to load product embeddings: ${error.message}`)
-  }
 
   const candidates: Array<{ id: string; embedding: number[] }> = []
-  for (const row of (data || []) as ProductEmbeddingRow[]) {
-    const id = String(row.product_id)
-    if (excludedIds.has(id)) continue
+  for (let from = 0; ; from += SUPABASE_SELECT_PAGE_SIZE) {
+    const to = from + SUPABASE_SELECT_PAGE_SIZE - 1
+    const { data, error } = await supabase
+      .from('product_embeddings')
+      .select('product_id,image_embedding')
+      .not('image_embedding', 'is', null)
+      .order('product_id', { ascending: true })
+      .range(from, to)
 
-    const vec = parseVector(row.image_embedding)
-    if (!vec || !vec.length) continue
-    const normalizedVec = l2Normalize(vec)
-    candidates.push({ id, embedding: normalizedVec })
+    if (error) {
+      throw new Error(`Failed to load product embeddings: ${error.message}`)
+    }
+
+    for (const row of (data || []) as ProductEmbeddingRow[]) {
+      const id = String(row.product_id)
+      if (excludedIds.has(id)) continue
+
+      const vec = parseVector(row.image_embedding)
+      if (!vec || !vec.length) continue
+      const normalizedVec = l2Normalize(vec)
+      candidates.push({ id, embedding: normalizedVec })
+    }
+
+    if (!data || data.length < SUPABASE_SELECT_PAGE_SIZE) {
+      break
+    }
   }
 
   const modelRanked = await rankWithTwoTower(userVec, candidates)

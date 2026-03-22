@@ -24,8 +24,18 @@ const SIGNUP_MIN_LIKES = DEFAULT_SIGNUP_MIN_LIKES
 const SIGNUP_TOP_K = DEFAULT_SIGNUP_TOP_K
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
 const SIGNUP_HYBRID_CATALOG_LIMIT = 1000
+const SUPABASE_SELECT_PAGE_SIZE = 500
+const SUPABASE_IN_FILTER_BATCH_SIZE = 200
 
 type HybridCatalogResult = { product_id: string | number; score: number }
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+  return chunks
+}
 
 function getRecsysBaseUrl(): string {
   const raw = process.env.RECSYS_API_URL || DEFAULT_RECSYS_BASE_URL
@@ -33,37 +43,58 @@ function getRecsysBaseUrl(): string {
 }
 
 async function loadAllImageEmbeddings(): Promise<Map<string, number[]>> {
-  const { data, error } = await supabase
-    .from('product_embeddings')
-    .select('product_id,image_embedding')
-    .not('image_embedding', 'is', null)
-
-  if (error) {
-    throw new Error(`Failed to load product embeddings: ${error.message}`)
-  }
-
   const map = new Map<string, number[]>()
-  for (const row of (data || []) as EmbeddingRow[]) {
-    const productId = String(row.product_id)
-    const vec = parseVector(row.image_embedding)
-    if (vec && vec.length > 0) {
-      map.set(productId, l2Normalize(vec))
+  for (let from = 0; ; from += SUPABASE_SELECT_PAGE_SIZE) {
+    const to = from + SUPABASE_SELECT_PAGE_SIZE - 1
+    const { data, error } = await supabase
+      .from('product_embeddings')
+      .select('product_id,image_embedding')
+      .not('image_embedding', 'is', null)
+      .order('product_id', { ascending: true })
+      .range(from, to)
+
+    if (error) {
+      throw new Error(`Failed to load product embeddings: ${error.message}`)
+    }
+
+    for (const row of (data || []) as EmbeddingRow[]) {
+      const productId = String(row.product_id)
+      const vec = parseVector(row.image_embedding)
+      if (vec && vec.length > 0) {
+        map.set(productId, l2Normalize(vec))
+      }
+    }
+
+    if (!data || data.length < SUPABASE_SELECT_PAGE_SIZE) {
+      break
     }
   }
+
   return map
 }
 
 async function loadProductsByIds(ids: string[]): Promise<ProductRow[]> {
   if (!ids.length) return []
-  const { data, error } = await supabase
-    .from('products')
-    .select('id,name,brand_name,image_url,price,product_url,category,description')
-    .in('id', ids)
 
-  if (error) {
-    throw new Error(`Failed to load products: ${error.message}`)
+  const uniqueIds = Array.from(new Set(ids.map(String)))
+  const productsById = new Map<string, ProductRow>()
+
+  for (const chunk of chunkArray(uniqueIds, SUPABASE_IN_FILTER_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id,name,brand_name,image_url,price,product_url,category,description')
+      .in('id', chunk)
+
+    if (error) {
+      throw new Error(`Failed to load products: ${error.message}`)
+    }
+
+    for (const row of (data || []) as ProductRow[]) {
+      productsById.set(String(row.id), row)
+    }
   }
-  return (data || []) as ProductRow[]
+
+  return uniqueIds.map((id) => productsById.get(id)).filter((row): row is ProductRow => Boolean(row))
 }
 
 async function loadLatestProductsForHybrid(limit: number): Promise<ProductRow[]> {
