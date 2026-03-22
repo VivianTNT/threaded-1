@@ -29,6 +29,7 @@ type RecommendationEngine =
 
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
 const HYBRID_CATALOG_LIMIT = 1000
+const HYBRID_API_TIMEOUT_MS = parseInt(process.env.RECSYS_TIMEOUT_MS || '60000', 10)
 
 function getRecsysBaseUrl(): string {
   const raw = process.env.RECSYS_API_URL || DEFAULT_RECSYS_BASE_URL
@@ -143,7 +144,8 @@ async function scoreProductsWithHybridCatalogApi(
   }
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 20000)
+  const startedAt = Date.now()
+  const timeout = setTimeout(() => controller.abort(), HYBRID_API_TIMEOUT_MS)
   try {
     const response = await fetch(`${baseUrl}/recommend/hybrid/catalog`, {
       method: 'POST',
@@ -153,7 +155,10 @@ async function scoreProductsWithHybridCatalogApi(
     })
 
     if (!response.ok) {
-      throw new Error(`Hybrid API error (${response.status})`)
+      const body = await response.text().catch(() => '')
+      throw new Error(
+        `Hybrid API error (${response.status}) after ${Date.now() - startedAt}ms: ${body || 'no body'}`
+      )
     }
 
     const json = await response.json()
@@ -165,6 +170,18 @@ async function scoreProductsWithHybridCatalogApi(
         score: Number(r.score),
       }))
       .filter((r) => Number.isFinite(r.score))
+  } catch (error: any) {
+    const elapsedMs = Date.now() - startedAt
+    console.error('Hybrid catalog API request failed', {
+      baseUrl,
+      elapsedMs,
+      timeoutMs: HYBRID_API_TIMEOUT_MS,
+      likedProducts: likedProducts.length,
+      catalogProducts: filteredCatalog.length,
+      error: error?.name || 'UnknownError',
+      message: error?.message || String(error),
+    })
+    throw error
   } finally {
     clearTimeout(timeout)
   }
