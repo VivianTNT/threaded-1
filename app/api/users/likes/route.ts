@@ -23,6 +23,11 @@ function getMetadataObject(value: unknown): Record<string, unknown> {
   return { ...(value as Record<string, unknown>) }
 }
 
+function isMissingSnapshotTableError(message: string | undefined): boolean {
+  const normalized = String(message || '').toLowerCase()
+  return normalized.includes('user_recommendation_snapshots') || normalized.includes('recommendation_snapshot')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -110,6 +115,15 @@ export async function POST(request: NextRequest) {
 
     if (updateResult.error) {
       throw new Error(`Failed to update user likes: ${updateResult.error.message}`)
+    }
+
+    const { error: snapshotError } = await supabase
+      .from('user_recommendation_snapshots')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (snapshotError && !isMissingSnapshotTableError(snapshotError.message)) {
+      throw new Error(`Failed to invalidate recommendation snapshot: ${snapshotError.message}`)
     }
 
     return NextResponse.json({

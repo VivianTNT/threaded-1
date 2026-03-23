@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'crypto'
 import { transformPennProduct, PennProduct } from '@/lib/penn-products'
 import { cosineSimilarity, l2Normalize, parseVector } from '@/lib/recommendations/image-content'
 import { rankWithTwoTower } from '@/lib/recommendations/model-service'
@@ -30,11 +31,47 @@ type RecommendationEngine =
   | 'two_tower_or_cosine_fallback'
   | 'latest_products_fallback'
 
+type PersonalizedRecommendationMode = 'personalized_hybrid_api' | 'personalized_image'
+
+type RecommendationSnapshotRow = {
+  user_id: string
+  snapshot_key: string
+  catalog_marker: string | null
+  mode: PersonalizedRecommendationMode
+  engine: RecommendationEngine
+  recommended_product_ids: string[] | null
+  recommendation_scores: Record<string, number> | null
+  total: number | null
+  expires_at: string
+}
+
+type RecommendationSnapshotPayload = {
+  userId: string
+  snapshotKey: string
+  catalogMarker: string | null
+  mode: PersonalizedRecommendationMode
+  engine: RecommendationEngine
+  recommendedProductIds: string[]
+  recommendationScores: Record<string, number>
+  total: number
+}
+
+type PersonalizedRecommendationResult = {
+  recommendedProductIds: string[]
+  recommendationScores: Record<string, number>
+  total: number
+  mode: PersonalizedRecommendationMode
+  engine: RecommendationEngine
+}
+
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
 const HYBRID_CATALOG_LIMIT = 1000
 const HYBRID_API_TIMEOUT_MS = parseInt(process.env.RECSYS_TIMEOUT_MS || '60000', 10)
 const SUPABASE_SELECT_PAGE_SIZE = 500
 const SUPABASE_IN_FILTER_BATCH_SIZE = 200
+const DEFAULT_RECOMMENDATION_SNAPSHOT_TTL_MINUTES = 30
+const DEFAULT_RECOMMENDATION_SNAPSHOT_LIMIT = 200
+const RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION = 1
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
@@ -49,9 +86,152 @@ function getRecsysBaseUrl(): string {
   return raw.replace(/\/+$/, '')
 }
 
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return Math.floor(parsed)
+}
+
+function getRecommendationSnapshotTtlMinutes(): number {
+  return parsePositiveInt(
+    process.env.RECOMMENDATION_SNAPSHOT_TTL_MINUTES,
+    DEFAULT_RECOMMENDATION_SNAPSHOT_TTL_MINUTES
+  )
+}
+
+function getRecommendationSnapshotLimit(): number {
+  return parsePositiveInt(
+    process.env.RECOMMENDATION_SNAPSHOT_LIMIT,
+    DEFAULT_RECOMMENDATION_SNAPSHOT_LIMIT
+  )
+}
+
 function asMetadataStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.map((v) => String(v))
+}
+
+function isMissingSnapshotTableError(message: string | undefined): boolean {
+  const normalized = String(message || '').toLowerCase()
+  return normalized.includes('user_recommendation_snapshots') || normalized.includes('recommendation_snapshot')
+}
+
+function buildRecommendationSnapshotKey(likedIds: string[], shownIds: string[]): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        version: RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION,
+        likedIds,
+        shownIds,
+      })
+    )
+    .digest('hex')
+}
+
+function getRecommendationReason(mode: PersonalizedRecommendationMode): string {
+  return mode === 'personalized_hybrid_api'
+    ? 'Recommended by multimodal ranker (text, image, and two-tower signals).'
+    : 'Recommended from your liked picks using personalized ranking.'
+}
+
+function toRecommendationScoreRecord(rows: ScoredId[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const row of rows) {
+    if (!row.id || !Number.isFinite(row.score)) continue
+    out[row.id] = row.score
+  }
+  return out
+}
+
+function toDisplayRecommendationScore(mode: PersonalizedRecommendationMode, score: number): number {
+  return mode === 'personalized_hybrid_api' ? toRecommendationScore(score) : Math.round(score * 100)
+}
+
+async function getCatalogMarker(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('created_at')
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (error) {
+    throw new Error(`Failed to fetch catalog marker: ${error.message}`)
+  }
+
+  return data?.[0]?.created_at || null
+}
+
+async function getRecommendationSnapshot(userId: string): Promise<RecommendationSnapshotRow | null> {
+  const { data, error } = await supabase
+    .from('user_recommendation_snapshots')
+    .select('user_id,snapshot_key,catalog_marker,mode,engine,recommended_product_ids,recommendation_scores,total,expires_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    if (isMissingSnapshotTableError(error.message)) return null
+    throw new Error(`Failed to load recommendation snapshot: ${error.message}`)
+  }
+
+  return (data as RecommendationSnapshotRow | null) || null
+}
+
+async function saveRecommendationSnapshot(payload: RecommendationSnapshotPayload): Promise<void> {
+  const expiresAt = new Date(Date.now() + getRecommendationSnapshotTtlMinutes() * 60 * 1000).toISOString()
+  const { error } = await supabase
+    .from('user_recommendation_snapshots')
+    .upsert({
+      user_id: payload.userId,
+      snapshot_key: payload.snapshotKey,
+      catalog_marker: payload.catalogMarker,
+      mode: payload.mode,
+      engine: payload.engine,
+      recommended_product_ids: payload.recommendedProductIds,
+      recommendation_scores: payload.recommendationScores,
+      total: payload.total,
+      computed_at: new Date().toISOString(),
+      expires_at: expiresAt,
+    })
+
+  if (error && !isMissingSnapshotTableError(error.message)) {
+    throw new Error(`Failed to save recommendation snapshot: ${error.message}`)
+  }
+}
+
+function isRecommendationSnapshotUsable(
+  snapshot: RecommendationSnapshotRow | null,
+  snapshotKey: string,
+  catalogMarker: string | null,
+  requiredCount: number
+): boolean {
+  if (!snapshot) return false
+  if (snapshot.snapshot_key !== snapshotKey) return false
+  if ((snapshot.catalog_marker || null) !== catalogMarker) return false
+  if (!snapshot.expires_at || new Date(snapshot.expires_at).getTime() <= Date.now()) return false
+  if ((snapshot.recommended_product_ids || []).length < requiredCount) return false
+  return true
+}
+
+async function hydrateRecommendationProducts(
+  recommendedProductIds: string[],
+  recommendationScores: Record<string, number>,
+  mode: PersonalizedRecommendationMode,
+  offset: number,
+  limit: number
+): Promise<ReturnType<typeof transformPennProduct>[]> {
+  const pageIds = recommendedProductIds.slice(offset, offset + limit)
+  const products = await getProductsByIds(pageIds)
+  const reason = getRecommendationReason(mode)
+
+  return products.map((p) => {
+    const fp = transformPennProduct(p)
+    const rawScore = recommendationScores[p.id]
+    return {
+      ...fp,
+      recommendation_score: Number.isFinite(rawScore) ? toDisplayRecommendationScore(mode, rawScore) : null,
+      recommendation_reason: Number.isFinite(rawScore) ? reason : null,
+    }
+  })
 }
 
 async function getUserRow(userId: string | null, userEmail: string | null): Promise<UserRecRow | null> {
@@ -335,6 +515,60 @@ async function scoreProductsByUserImageEmbedding(
   return scored
 }
 
+async function computePersonalizedRecommendations(
+  likedProductsRaw: PennProduct[],
+  likedIds: string[],
+  shownIds: string[],
+  userRow: UserRecRow,
+  requiredCount: number
+): Promise<PersonalizedRecommendationResult | null> {
+  const snapshotLimit = Math.max(requiredCount, getRecommendationSnapshotLimit())
+  const excluded = new Set<string>([...likedIds, ...shownIds])
+
+  if (likedProductsRaw.length > 0) {
+    try {
+      const catalogProducts = await getCatalogProductsForHybrid(HYBRID_CATALOG_LIMIT)
+      const hybridScored = await scoreProductsWithHybridCatalogApi(
+        likedProductsRaw,
+        catalogProducts,
+        excluded,
+        snapshotLimit
+      )
+
+      if (hybridScored.length > 0) {
+        const multimodalScored = await rerankHybridResultsWithImageSignals(hybridScored, likedIds)
+        const storedRows = multimodalScored.slice(0, snapshotLimit)
+
+        return {
+          recommendedProductIds: storedRows.map((row) => row.id),
+          recommendationScores: toRecommendationScoreRecord(storedRows),
+          total: multimodalScored.length,
+          mode: 'personalized_hybrid_api',
+          engine: 'faiss_two_tower_image_hybrid',
+        }
+      }
+    } catch (error) {
+      console.error('Hybrid catalog API path failed, falling back to local scorer:', error)
+    }
+  }
+
+  const userVec = parseVector(userRow.user_image_embedding_avg)
+  if (userVec && userVec.length > 0) {
+    const scored = await scoreProductsByUserImageEmbedding(userVec, excluded)
+    const storedRows = scored.slice(0, snapshotLimit)
+
+    return {
+      recommendedProductIds: storedRows.map((row) => row.id),
+      recommendationScores: toRecommendationScoreRecord(storedRows),
+      total: scored.length,
+      mode: 'personalized_image',
+      engine: 'two_tower_or_cosine_fallback',
+    }
+  }
+
+  return null
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -354,85 +588,71 @@ export async function GET(request: Request) {
 
     // Personalization path (hybrid recommender API) using liked products + catalog.
     if (userRow) {
-      const excluded = new Set<string>([...likedIds, ...shownIds])
-      const topK = Math.max(limit + offset, limit)
+      const requiredCount = Math.max(limit + offset, limit)
+      const catalogMarker = await getCatalogMarker()
+      const snapshotKey = buildRecommendationSnapshotKey(likedIds, shownIds)
+      const snapshot = await getRecommendationSnapshot(userRow.id)
 
-      if (likedProductsRaw.length > 0) {
-        try {
-          const catalogProducts = await getCatalogProductsForHybrid(HYBRID_CATALOG_LIMIT)
-          const hybridScored = await scoreProductsWithHybridCatalogApi(
-            likedProductsRaw,
-            catalogProducts,
-            excluded,
-            topK
-          )
-
-          if (hybridScored.length > 0) {
-            const multimodalScored = await rerankHybridResultsWithImageSignals(hybridScored, likedIds)
-            const pageScored = multimodalScored.slice(offset, offset + limit)
-            const pageIds = pageScored.map((s) => s.id)
-            const products = await getProductsByIds(pageIds)
-            const scoreMap = new Map(pageScored.map((s) => [s.id, s.score]))
-
-            const fashionProducts = products.map((p) => {
-              const fp = transformPennProduct(p)
-              const sim = scoreMap.get(p.id)
-              return {
-                ...fp,
-                recommendation_score: typeof sim === 'number' ? toRecommendationScore(sim) : null,
-                recommendation_reason:
-                  typeof sim === 'number'
-                    ? 'Recommended by multimodal ranker (text, image, and two-tower signals).'
-                    : null,
-              }
-            })
-
-            return NextResponse.json({
-              success: true,
-              products: fashionProducts,
-              likedProducts,
-              total: multimodalScored.length,
-              limit,
-              offset,
-              mode: 'personalized_hybrid_api',
-              engine: 'faiss_two_tower_image_hybrid' satisfies RecommendationEngine,
-            })
-          }
-        } catch (error) {
-          console.error('Hybrid catalog API path failed, falling back to local scorer:', error)
-        }
-      }
-
-      // Fallback personalization path (image-only) when user embedding exists.
-      const userVec = parseVector(userRow.user_image_embedding_avg)
-      if (userVec && userVec.length > 0) {
-        const scored = await scoreProductsByUserImageEmbedding(userVec, excluded)
-        const pageScored = scored.slice(offset, offset + limit)
-        const pageIds = pageScored.map((s) => s.id)
-
-        const products = await getProductsByIds(pageIds)
-        const scoreMap = new Map(pageScored.map((s) => [s.id, s.score]))
-
-        const fashionProducts = products.map((p) => {
-          const fp = transformPennProduct(p)
-          const sim = scoreMap.get(p.id)
-          return {
-            ...fp,
-            recommendation_score: typeof sim === 'number' ? Math.round(sim * 100) : null,
-            recommendation_reason:
-              typeof sim === 'number' ? 'Recommended from your liked picks using personalized ranking.' : null,
-          }
-        })
+      if (isRecommendationSnapshotUsable(snapshot, snapshotKey, catalogMarker, requiredCount)) {
+        const fashionProducts = await hydrateRecommendationProducts(
+          snapshot!.recommended_product_ids || [],
+          snapshot!.recommendation_scores || {},
+          snapshot!.mode,
+          offset,
+          limit
+        )
 
         return NextResponse.json({
           success: true,
           products: fashionProducts,
           likedProducts,
-          total: scored.length,
+          total: snapshot?.total || (snapshot?.recommended_product_ids || []).length,
           limit,
           offset,
-          mode: 'personalized_image',
-          engine: 'two_tower_or_cosine_fallback' satisfies RecommendationEngine,
+          mode: snapshot!.mode,
+          engine: snapshot!.engine,
+          cached: true,
+        })
+      }
+
+      const personalized = await computePersonalizedRecommendations(
+        likedProductsRaw,
+        likedIds,
+        shownIds,
+        userRow,
+        requiredCount
+      )
+
+      if (personalized) {
+        await saveRecommendationSnapshot({
+          userId: userRow.id,
+          snapshotKey,
+          catalogMarker,
+          mode: personalized.mode,
+          engine: personalized.engine,
+          recommendedProductIds: personalized.recommendedProductIds,
+          recommendationScores: personalized.recommendationScores,
+          total: personalized.total,
+        })
+
+        const fashionProducts = await hydrateRecommendationProducts(
+          personalized.recommendedProductIds,
+          personalized.recommendationScores,
+          personalized.mode,
+          offset,
+          limit
+        )
+
+        return NextResponse.json({
+          success: true,
+          products: fashionProducts,
+          likedProducts,
+          total: personalized.total,
+          limit,
+          offset,
+          mode: personalized.mode,
+          engine: personalized.engine,
+          cached: false,
         })
       }
     }
