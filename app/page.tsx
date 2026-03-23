@@ -17,6 +17,72 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar'
 
+type ProductsResponse = {
+  success: boolean
+  products: FashionProduct[]
+  likedProducts: FashionProduct[]
+  total?: number
+  limit?: number
+  offset?: number
+  mode?: string
+  engine?: string
+  cached?: boolean
+}
+
+type RecommendationViewCache = {
+  userId: string
+  data: ProductsResponse
+  selectedProductId: string | null
+  showFilters: boolean
+  savedAt: number
+}
+
+const RECOMMENDATION_VIEW_CACHE_KEY = 'threaded:recommendation-view-cache'
+const CLIENT_REVALIDATE_AFTER_MS = 30 * 1000
+
+let recommendationViewMemoryCache: RecommendationViewCache | null = null
+
+function readRecommendationViewCache(userId: string): RecommendationViewCache | null {
+  if (recommendationViewMemoryCache?.userId === userId) {
+    return recommendationViewMemoryCache
+  }
+
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.sessionStorage.getItem(RECOMMENDATION_VIEW_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as RecommendationViewCache
+    if (!parsed || parsed.userId !== userId) return null
+
+    recommendationViewMemoryCache = parsed
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeRecommendationViewCache(cache: RecommendationViewCache): void {
+  recommendationViewMemoryCache = cache
+  if (typeof window === 'undefined') return
+
+  try {
+    window.sessionStorage.setItem(RECOMMENDATION_VIEW_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // Ignore storage write failures.
+  }
+}
+
+function resolveSelectedProduct(
+  likedProducts: FashionProduct[],
+  products: FashionProduct[],
+  selectedProductId: string | null
+): FashionProduct | null {
+  if (!selectedProductId) return null
+  return [...likedProducts, ...products].find((product) => product.id === selectedProductId) || null
+}
+
 export default function Page() {
   const { user, session, isLoading } = useRequireAuth()
   const [selectedProduct, setSelectedProduct] = React.useState<FashionProduct | null>(null)
@@ -34,11 +100,30 @@ export default function Page() {
     return new Set(likedProducts.map((product) => product.id))
   }, [likedProducts])
 
-  const fetchProducts = async () => {
+  const applyProductsResponse = React.useCallback(
+    (data: ProductsResponse, selectedProductId: string | null, nextShowFilters: boolean) => {
+      const nextProducts = Array.isArray(data.products) ? data.products : []
+      const nextLikedProducts = Array.isArray(data.likedProducts) ? data.likedProducts : []
+
+      setProducts(nextProducts)
+      setLikedProducts(nextLikedProducts)
+      setRecommendationMode(typeof data.mode === 'string' ? data.mode : 'latest_fallback')
+      setRecommendationEngine(
+        typeof data.engine === 'string' ? data.engine : 'latest_products_fallback'
+      )
+      setShowFilters(nextShowFilters)
+      setSelectedProduct(resolveSelectedProduct(nextLikedProducts, nextProducts, selectedProductId))
+    },
+    []
+  )
+
+  const fetchProducts = async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
     if (!user) return
 
     try {
-      setIsLoadingProducts(true)
+      if (showLoading) {
+        setIsLoadingProducts(true)
+      }
       const params = new URLSearchParams({
         limit: '50',
         userId: user.id || '',
@@ -48,12 +133,19 @@ export default function Page() {
       const data = await response.json()
 
       if (data.success) {
-        setProducts(Array.isArray(data.products) ? data.products : [])
-        setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
-        setRecommendationMode(typeof data.mode === 'string' ? data.mode : 'latest_fallback')
-        setRecommendationEngine(
-          typeof data.engine === 'string' ? data.engine : 'latest_products_fallback'
+        applyProductsResponse(
+          data as ProductsResponse,
+          selectedProduct?.id || null,
+          showFilters
         )
+
+        writeRecommendationViewCache({
+          userId: user.id,
+          data: data as ProductsResponse,
+          selectedProductId: selectedProduct?.id || null,
+          showFilters,
+          savedAt: Date.now(),
+        })
       } else {
         console.error('Failed to fetch products:', data.message)
       }
@@ -66,9 +158,44 @@ export default function Page() {
 
   React.useEffect(() => {
     if (user) {
-      void fetchProducts()
+      const cachedView = readRecommendationViewCache(user.id)
+      if (cachedView?.data?.success) {
+        applyProductsResponse(
+          cachedView.data,
+          cachedView.selectedProductId,
+          cachedView.showFilters
+        )
+        setIsLoadingProducts(false)
+
+        const shouldRevalidate = Date.now() - cachedView.savedAt > CLIENT_REVALIDATE_AFTER_MS
+        if (shouldRevalidate) {
+          void fetchProducts({ showLoading: false })
+        }
+        return
+      }
+
+      void fetchProducts({ showLoading: true })
     }
-  }, [user])
+  }, [user, applyProductsResponse])
+
+  React.useEffect(() => {
+    if (!user) return
+    if (products.length === 0 && likedProducts.length === 0) return
+
+    writeRecommendationViewCache({
+      userId: user.id,
+      data: {
+        success: true,
+        products,
+        likedProducts,
+        mode: recommendationMode,
+        engine: recommendationEngine,
+      },
+      selectedProductId: selectedProduct?.id || null,
+      showFilters,
+      savedAt: Date.now(),
+    })
+  }, [user, products, likedProducts, recommendationMode, recommendationEngine, selectedProduct, showFilters])
 
   const handleToggleLike = async (product: FashionProduct) => {
     if (!session?.access_token || pendingLikeProductId) return
