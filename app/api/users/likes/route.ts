@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { vectorToPg } from '@/lib/recommendations/image-content'
 import {
   addLikedProductIds,
-  computeUserImageEmbeddingFromLikedProducts,
   getStoredLikedProductIds,
   removeLikedProductId,
 } from '@/lib/users/liked-products'
@@ -76,13 +74,10 @@ export async function POST(request: NextRequest) {
     const metadata = getMetadataObject((userRow as UserLikesRow).metadata)
     metadata.liked_product_ids = nextLikedProductIds
 
-    const userImageEmbeddingAvg = await computeUserImageEmbeddingFromLikedProducts(supabase, nextLikedProductIds)
-
     const updatePayload: Record<string, unknown> = {
       liked_product_ids: nextLikedProductIds,
       metadata,
       updated_at: new Date().toISOString(),
-      user_image_embedding_avg: userImageEmbeddingAvg ? vectorToPg(userImageEmbeddingAvg) : null,
     }
     const retryablePayload: Record<string, unknown> = { ...updatePayload }
 
@@ -95,16 +90,6 @@ export async function POST(request: NextRequest) {
 
     if (updateResult.error && updateResult.error.message?.includes('liked_product_ids')) {
       delete retryablePayload.liked_product_ids
-      updateResult = await supabase
-        .from('users')
-        .update(retryablePayload)
-        .eq('id', user.id)
-        .select('id')
-        .single()
-    }
-
-    if (updateResult.error && updateResult.error.message?.includes('user_image_embedding_avg')) {
-      delete retryablePayload.user_image_embedding_avg
       updateResult = await supabase
         .from('users')
         .update(retryablePayload)

@@ -83,6 +83,11 @@ function resolveSelectedProduct(
   return [...likedProducts, ...products].find((product) => product.id === selectedProductId) || null
 }
 
+function upsertProduct(products: FashionProduct[], product: FashionProduct): FashionProduct[] {
+  const without = products.filter((entry) => entry.id !== product.id)
+  return [product, ...without]
+}
+
 export default function Page() {
   const { user, session, isLoading } = useRequireAuth()
   const [selectedProduct, setSelectedProduct] = React.useState<FashionProduct | null>(null)
@@ -197,10 +202,48 @@ export default function Page() {
     })
   }, [user, products, likedProducts, recommendationMode, recommendationEngine, selectedProduct, showFilters])
 
+  const applyOptimisticLikeToggle = React.useCallback(
+    (product: FashionProduct, action: 'like' | 'unlike') => {
+      const optimisticProduct = {
+        ...product,
+        is_liked: action === 'like',
+      }
+
+      if (action === 'like') {
+        setProducts((prev) => prev.filter((entry) => entry.id !== product.id))
+        setLikedProducts((prev) => upsertProduct(prev, optimisticProduct))
+      } else {
+        setLikedProducts((prev) => prev.filter((entry) => entry.id !== product.id))
+        setProducts((prev) => {
+          const updated = prev.map((entry) => (
+            entry.id === product.id
+              ? optimisticProduct
+              : entry
+          ))
+          return updated.some((entry) => entry.id === product.id)
+            ? updated
+            : [optimisticProduct, ...updated]
+        })
+      }
+
+      setSelectedProduct((current) => (
+        current?.id === product.id
+          ? optimisticProduct
+          : current
+      ))
+    },
+    []
+  )
+
   const handleToggleLike = async (product: FashionProduct) => {
     if (!session?.access_token || pendingLikeProductId) return
 
     const action = likedItemIds.has(product.id) ? 'unlike' : 'like'
+    const previousProducts = products
+    const previousLikedProducts = likedProducts
+    const previousSelectedProduct = selectedProduct
+
+    applyOptimisticLikeToggle(product, action)
     setPendingLikeProductId(product.id)
 
     try {
@@ -220,18 +263,12 @@ export default function Page() {
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to update liked products')
       }
-
-      setSelectedProduct((current) => {
-        if (!current || current.id !== product.id) return current
-        return {
-          ...current,
-          is_liked: action === 'like',
-        }
-      })
-
-      await fetchProducts()
+      void fetchProducts({ showLoading: false })
     } catch (error) {
       console.error('Failed to toggle like:', error)
+      setProducts(previousProducts)
+      setLikedProducts(previousLikedProducts)
+      setSelectedProduct(previousSelectedProduct)
     } finally {
       setPendingLikeProductId(null)
     }

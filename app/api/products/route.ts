@@ -4,7 +4,7 @@ import { createHash } from 'crypto'
 import { transformPennProduct, PennProduct } from '@/lib/penn-products'
 import { cosineSimilarity, l2Normalize, parseVector } from '@/lib/recommendations/image-content'
 import { rankWithTwoTower } from '@/lib/recommendations/model-service'
-import { getStoredLikedProductIds } from '@/lib/users/liked-products'
+import { computeUserImageEmbeddingFromLikedProducts, getStoredLikedProductIds } from '@/lib/users/liked-products'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -552,7 +552,12 @@ async function computePersonalizedRecommendations(
     }
   }
 
-  const userVec = parseVector(userRow.user_image_embedding_avg)
+  const recomputedUserVec = likedIds.length
+    ? await computeUserImageEmbeddingFromLikedProducts(supabase, likedIds)
+    : null
+  const userVec = recomputedUserVec && recomputedUserVec.length > 0
+    ? recomputedUserVec
+    : parseVector(userRow.user_image_embedding_avg)
   if (userVec && userVec.length > 0) {
     const scored = await scoreProductsByUserImageEmbedding(userVec, excluded)
     const storedRows = scored.slice(0, snapshotLimit)
