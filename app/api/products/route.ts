@@ -49,7 +49,7 @@ function getRecsysBaseUrl(): string {
   return raw.replace(/\/+$/, '')
 }
 
-function asStringArray(value: unknown): string[] {
+function asMetadataStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.map((v) => String(v))
 }
@@ -345,7 +345,7 @@ export async function GET(request: Request) {
 
     const userRow = await getUserRow(userId, userEmail)
     const likedIds = getStoredLikedProductIds(userRow)
-    const shownIds = asStringArray(userRow?.metadata?.shown_product_ids)
+    const shownIds = asMetadataStringArray(userRow?.metadata?.shown_product_ids)
     const likedProductsRaw = likedIds.length ? await getProductsByIds(likedIds) : []
     const likedProducts = likedProductsRaw.map((p) => ({
       ...transformPennProduct(p),
