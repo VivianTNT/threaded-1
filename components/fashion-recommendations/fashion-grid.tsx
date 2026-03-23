@@ -12,24 +12,19 @@ import { useCart } from "@/lib/cart-context"
 interface FashionGridProps {
   products: FashionProduct[]
   onProductClick: (product: FashionProduct) => void
+  likedItems: Set<string>
+  onToggleLike: (product: FashionProduct) => void
+  pendingLikeProductId?: string | null
 }
 
-export function FashionGrid({ products, onProductClick }: FashionGridProps) {
-  const [likedItems, setLikedItems] = React.useState<Set<string>>(new Set())
+export function FashionGrid({
+  products,
+  onProductClick,
+  likedItems,
+  onToggleLike,
+  pendingLikeProductId,
+}: FashionGridProps) {
   const { addToCart, isInCart } = useCart()
-
-  const toggleLike = (productId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setLikedItems(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(productId)) {
-        newSet.delete(productId)
-      } else {
-        newSet.add(productId)
-      }
-      return newSet
-    })
-  }
 
   const handleAddToCart = (product: FashionProduct, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -62,7 +57,11 @@ export function FashionGrid({ products, onProductClick }: FashionGridProps) {
                   "h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm hover:bg-white",
                   likedItems.has(product.id) && "text-red-500"
                 )}
-                onClick={(e) => toggleLike(product.id, e)}
+                disabled={pendingLikeProductId === product.id}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleLike(product)
+                }}
               >
                 <Heart className={cn("h-4 w-4", likedItems.has(product.id) && "fill-current")} />
               </Button>

@@ -15,6 +15,9 @@ interface ProductDetailPanelProps {
   similarProducts: FashionProduct[]
   onClose: () => void
   onSimilarProductClick: (product: FashionProduct) => void
+  isLiked: boolean
+  isTogglingLike?: boolean
+  onToggleLike: (product: FashionProduct) => void
 }
 
 export function ProductDetailPanel({
@@ -22,8 +25,10 @@ export function ProductDetailPanel({
   similarProducts,
   onClose,
   onSimilarProductClick,
+  isLiked,
+  isTogglingLike,
+  onToggleLike,
 }: ProductDetailPanelProps) {
-  const [isLiked, setIsLiked] = React.useState(false)
   const { addToCart, isInCart, removeFromCart } = useCart()
   const inCart = isInCart(product.id)
 
@@ -80,7 +85,8 @@ export function ProductDetailPanel({
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setIsLiked(!isLiked)}
+                  disabled={isTogglingLike}
+                  onClick={() => onToggleLike(product)}
                 >
                   <Heart className={cn("h-5 w-5", isLiked && "fill-current text-red-500")} />
                 </Button>

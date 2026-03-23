@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sidebar'
 
 export default function Page() {
-  const { user, isLoading } = useRequireAuth()
+  const { user, session, isLoading } = useRequireAuth()
   const [selectedProduct, setSelectedProduct] = React.useState<FashionProduct | null>(null)
   const [products, setProducts] = React.useState<FashionProduct[]>([])
   const [likedProducts, setLikedProducts] = React.useState<FashionProduct[]>([])
@@ -26,44 +26,89 @@ export default function Page() {
   const [recommendationEngine, setRecommendationEngine] = React.useState<string>('latest_products_fallback')
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
+  const [pendingLikeProductId, setPendingLikeProductId] = React.useState<string | null>(null)
   const allProducts = React.useMemo(() => {
     return [...likedProducts, ...products]
   }, [likedProducts, products])
+  const likedItemIds = React.useMemo(() => {
+    return new Set(likedProducts.map((product) => product.id))
+  }, [likedProducts])
 
-  // Fetch products from Penn database
-  React.useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setIsLoadingProducts(true)
-        const params = new URLSearchParams({
-          limit: '50',
-          userId: user?.id || '',
-          userEmail: user?.email || '',
-        })
-        const response = await fetch(`/api/products?${params.toString()}`)
-        const data = await response.json()
+  const fetchProducts = async () => {
+    if (!user) return
 
-        if (data.success) {
-          setProducts(Array.isArray(data.products) ? data.products : [])
-          setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
-          setRecommendationMode(typeof data.mode === 'string' ? data.mode : 'latest_fallback')
-          setRecommendationEngine(
-            typeof data.engine === 'string' ? data.engine : 'latest_products_fallback'
-          )
-        } else {
-          console.error('Failed to fetch products:', data.message)
-        }
-      } catch (error) {
-        console.error('Error fetching products:', error)
-      } finally {
-        setIsLoadingProducts(false)
+    try {
+      setIsLoadingProducts(true)
+      const params = new URLSearchParams({
+        limit: '50',
+        userId: user.id || '',
+        userEmail: user.email || '',
+      })
+      const response = await fetch(`/api/products?${params.toString()}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setProducts(Array.isArray(data.products) ? data.products : [])
+        setLikedProducts(Array.isArray(data.likedProducts) ? data.likedProducts : [])
+        setRecommendationMode(typeof data.mode === 'string' ? data.mode : 'latest_fallback')
+        setRecommendationEngine(
+          typeof data.engine === 'string' ? data.engine : 'latest_products_fallback'
+        )
+      } else {
+        console.error('Failed to fetch products:', data.message)
       }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    } finally {
+      setIsLoadingProducts(false)
     }
+  }
 
+  React.useEffect(() => {
     if (user) {
-      fetchProducts()
+      void fetchProducts()
     }
   }, [user])
+
+  const handleToggleLike = async (product: FashionProduct) => {
+    if (!session?.access_token || pendingLikeProductId) return
+
+    const action = likedItemIds.has(product.id) ? 'unlike' : 'like'
+    setPendingLikeProductId(product.id)
+
+    try {
+      const response = await fetch('/api/users/likes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          action,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to update liked products')
+      }
+
+      setSelectedProduct((current) => {
+        if (!current || current.id !== product.id) return current
+        return {
+          ...current,
+          is_liked: action === 'like',
+        }
+      })
+
+      await fetchProducts()
+    } catch (error) {
+      console.error('Failed to toggle like:', error)
+    } finally {
+      setPendingLikeProductId(null)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -165,6 +210,9 @@ export default function Page() {
                     <FashionGrid
                       products={likedProducts}
                       onProductClick={setSelectedProduct}
+                      likedItems={likedItemIds}
+                      onToggleLike={handleToggleLike}
+                      pendingLikeProductId={pendingLikeProductId}
                     />
                   </div>
                 )}
@@ -204,6 +252,9 @@ export default function Page() {
                     <FashionGrid
                       products={products}
                       onProductClick={setSelectedProduct}
+                      likedItems={likedItemIds}
+                      onToggleLike={handleToggleLike}
+                      pendingLikeProductId={pendingLikeProductId}
                     />
                   )}
                 </div>
@@ -221,6 +272,9 @@ export default function Page() {
           similarProducts={getSimilarProducts(selectedProduct)}
           onClose={() => setSelectedProduct(null)}
           onSimilarProductClick={setSelectedProduct}
+          isLiked={likedItemIds.has(selectedProduct.id)}
+          isTogglingLike={pendingLikeProductId === selectedProduct.id}
+          onToggleLike={handleToggleLike}
         />
       )}
     </ChatLayout>

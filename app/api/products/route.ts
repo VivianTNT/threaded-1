@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { transformPennProduct, PennProduct } from '@/lib/penn-products'
 import { cosineSimilarity, l2Normalize, parseVector } from '@/lib/recommendations/image-content'
 import { rankWithTwoTower } from '@/lib/recommendations/model-service'
+import { getStoredLikedProductIds } from '@/lib/users/liked-products'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -12,6 +13,7 @@ type UserRecRow = {
   id: string
   email: string | null
   metadata: any
+  liked_product_ids: string[] | null
   user_image_embedding_avg: unknown
 }
 
@@ -57,7 +59,7 @@ async function getUserRow(userId: string | null, userEmail: string | null): Prom
 
   let query = supabase
     .from('users')
-    .select('id,email,metadata,user_image_embedding_avg')
+    .select('id,email,metadata,liked_product_ids,user_image_embedding_avg')
     .limit(1)
 
   if (userId) {
@@ -342,7 +344,7 @@ export async function GET(request: Request) {
     const userEmail = searchParams.get('userEmail')
 
     const userRow = await getUserRow(userId, userEmail)
-    const likedIds = asStringArray(userRow?.metadata?.liked_product_ids)
+    const likedIds = getStoredLikedProductIds(userRow)
     const shownIds = asStringArray(userRow?.metadata?.shown_product_ids)
     const likedProductsRaw = likedIds.length ? await getProductsByIds(likedIds) : []
     const likedProducts = likedProductsRaw.map((p) => ({

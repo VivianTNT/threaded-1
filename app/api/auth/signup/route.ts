@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { vectorToPg } from '@/lib/recommendations/image-content'
 import {
-  l2Normalize,
-  meanVectors,
-  parseVector,
-  vectorToPg,
-} from '@/lib/recommendations/image-content'
-import { buildUserEmbeddingWithTwoTower } from '@/lib/recommendations/model-service'
+  addLikedProductIds,
+  computeUserImageEmbeddingFromLikedProducts,
+} from '@/lib/users/liked-products'
 
 // Use service role key for server-side operations
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -14,40 +12,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 const MIN_LIKES_TO_STORE_EMBEDDING = 1
-
-async function computeUserImageEmbeddingAvgFromLikes(likedProductIds: string[]): Promise<number[] | null> {
-  if (!likedProductIds.length) return null
-
-  const { data, error } = await supabase
-    .from('product_embeddings')
-    .select('product_id,image_embedding')
-    .in('product_id', likedProductIds)
-    .not('image_embedding', 'is', null)
-
-  if (error) {
-    throw new Error(`Failed to load liked product embeddings: ${error.message}`)
-  }
-
-  const vectors: number[][] = []
-  for (const row of data || []) {
-    const vec = parseVector((row as any).image_embedding)
-    if (vec && vec.length > 0) {
-      vectors.push(l2Normalize(vec))
-    }
-  }
-
-  if (!vectors.length) return null
-
-  // Prefer the trained two-tower user encoder if available.
-  const sourceDim = vectors[0]?.length || 0
-  const modelEmbedding = await buildUserEmbeddingWithTwoTower(vectors)
-  if (modelEmbedding && modelEmbedding.length === sourceDim) {
-    return l2Normalize(modelEmbedding)
-  }
-
-  // Safe fallback to legacy average embedding when service/model is unavailable.
-  return l2Normalize(meanVectors(vectors))
-}
 
 export async function POST(request: Request) {
   try {
@@ -107,21 +71,23 @@ export async function POST(request: Request) {
     const recommendedProductIds: string[] = Array.isArray(userData?.recommendedProductIds)
       ? userData.recommendedProductIds.map((id: any) => String(id))
       : []
+    const storedLikedProductIds = addLikedProductIds([], likedProductIds)
 
-    const userImageEmbeddingAvg = likedProductIds.length >= MIN_LIKES_TO_STORE_EMBEDDING
-      ? await computeUserImageEmbeddingAvgFromLikes(likedProductIds)
+    const userImageEmbeddingAvg = storedLikedProductIds.length >= MIN_LIKES_TO_STORE_EMBEDDING
+      ? await computeUserImageEmbeddingFromLikedProducts(supabase, storedLikedProductIds)
       : null
 
     const baseInsertPayload: any = {
       id: authData.user.id, // Use Auth user ID as primary key
       handle: userData.name,
       email: email,
+      liked_product_ids: storedLikedProductIds,
       metadata: {
         style_preferences: userData.stylePreferences || [],
         budget_range: userData.budgetRange || '',
         favorite_colors: userData.favoriteColors || '',
         bio: userData.bio || '',
-        liked_product_ids: likedProductIds,
+        liked_product_ids: storedLikedProductIds,
         shown_product_ids: shownProductIds,
         recommended_product_ids: recommendedProductIds,
       },
@@ -140,10 +106,17 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    // Fallback for environments that have not applied the new embedding column migration yet.
-    if (insertResult.error && insertResult.error.message?.includes('user_image_embedding_avg')) {
+    // Fallback for environments that have not applied new profile columns yet.
+    if (
+      insertResult.error &&
+      (
+        insertResult.error.message?.includes('user_image_embedding_avg') ||
+        insertResult.error.message?.includes('liked_product_ids')
+      )
+    ) {
       const fallbackPayload = { ...baseInsertPayload }
       delete fallbackPayload.user_image_embedding_avg
+      delete fallbackPayload.liked_product_ids
       insertResult = await supabase
         .from('users')
         .insert(fallbackPayload)
