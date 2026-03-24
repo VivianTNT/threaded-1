@@ -8,9 +8,10 @@ import { useRequireAuth } from '@/lib/auth-utils'
 import { FashionGrid } from '@/components/fashion-recommendations/fashion-grid'
 import { ProductDetailPanel } from '@/components/fashion-recommendations/product-detail-panel'
 import { FashionProduct } from '@/lib/types/fashion-product'
-import { Sparkles, Filter } from 'lucide-react'
+import { Sparkles, Filter, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 
 import {
   SidebarInset,
@@ -88,6 +89,17 @@ function upsertProduct(products: FashionProduct[], product: FashionProduct): Fas
   return [product, ...without]
 }
 
+// --- Extract Domain for Brand ---
+function extractDomain(url?: string | null): string {
+  if (!url) return 'Unknown'
+  try {
+    const hostname = new URL(url).hostname
+    return hostname.replace(/^www\./, '')
+  } catch {
+    return 'Unknown'
+  }
+}
+
 export default function Page() {
   const { user, session, isLoading } = useRequireAuth()
   const [selectedProduct, setSelectedProduct] = React.useState<FashionProduct | null>(null)
@@ -98,12 +110,83 @@ export default function Page() {
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
   const [pendingLikeProductId, setPendingLikeProductId] = React.useState<string | null>(null)
+
+  // --- FILTER STATE ---
+  const [activeFilters, setActiveFilters] = React.useState({
+    searchQuery: '',
+    brands: [] as string[],
+    minPrice: 0,
+    maxPrice: 5000,
+  })
+
   const allProducts = React.useMemo(() => {
     return [...likedProducts, ...products]
   }, [likedProducts, products])
+  
   const likedItemIds = React.useMemo(() => {
     return new Set(likedProducts.map((product) => product.id))
   }, [likedProducts])
+
+  // --- DYNAMIC FILTER OPTIONS ---
+  const availableBrands = React.useMemo(() => {
+    const domains = products.map(p => extractDomain(p.product_url)).filter(d => d !== 'Unknown')
+    return Array.from(new Set(domains)).sort()
+  }, [products])
+
+  const absoluteMaxPrice = React.useMemo(() => {
+    const max = Math.max(...products.map(p => p.price || 0), 100)
+    return Math.ceil(max / 10) * 10
+  }, [products])
+
+  // --- FILTER LOGIC ---
+  const filteredProducts = React.useMemo(() => {
+    return products.filter((product) => {
+      // 1. Search Query
+      if (activeFilters.searchQuery) {
+        const query = activeFilters.searchQuery.toLowerCase()
+        const matchName = (product.name || '').toLowerCase().includes(query)
+        const matchDesc = (product.description || '').toLowerCase().includes(query)
+        if (!matchName && !matchDesc) return false
+      }
+
+      // Brand (Derived from Domain)
+      if (activeFilters.brands.length > 0) {
+        const productBrand = extractDomain(product.product_url)
+        if (!activeFilters.brands.includes(productBrand)) return false
+      }
+
+      // Price Bounds
+      if (product.price < activeFilters.minPrice) return false
+      if (product.price > activeFilters.maxPrice) return false
+      
+      return true
+    })
+  }, [products, activeFilters])
+
+  // Initialize max price once products load
+  React.useEffect(() => {
+    if (products.length > 0 && activeFilters.maxPrice === 5000) {
+      setActiveFilters(prev => ({ ...prev, maxPrice: absoluteMaxPrice }))
+    }
+  }, [products, absoluteMaxPrice, activeFilters.maxPrice])
+
+  const toggleBrand = (brand: string) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      brands: prev.brands.includes(brand) 
+        ? prev.brands.filter(b => b !== brand)
+        : [...prev.brands, brand]
+    }))
+  }
+
+  const clearFilters = () => {
+    setActiveFilters({
+      searchQuery: '',
+      brands: [],
+      minPrice: 0,
+      maxPrice: absoluteMaxPrice,
+    })
+  }
 
   const applyProductsResponse = React.useCallback(
     (data: ProductsResponse, selectedProductId: string | null, nextShowFilters: boolean) => {
@@ -286,13 +369,11 @@ export default function Page() {
     return null // Will redirect to login
   }
 
-  // Get similar products based on category and style
   const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
+    const productDomain = extractDomain(product.product_url);
     return allProducts
       .filter(p =>
-        p.id !== product.id &&
-        (p.category === product.category ||
-         p.style.some(s => product.style.includes(s)))
+        p.id !== product.id && extractDomain(p.product_url) === productDomain
       )
       .slice(0, 4)
   }
@@ -383,46 +464,131 @@ export default function Page() {
 
                 {/* Filters Bar */}
                 <div className="px-4 lg:px-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b pb-4">
                     <div>
                       <h2 className="text-xl font-semibold">Recommended for You</h2>
                       <p className="text-sm text-muted-foreground">
-                        {products.length} items
+                        Showing {filteredProducts.length} of {products.length} items
                       </p>
                     </div>
                     <Button
-                      variant="outline"
+                      variant={showFilters ? "secondary" : "outline"}
                       size="sm"
                       onClick={() => setShowFilters(!showFilters)}
                     >
                       <Filter className="h-4 w-4 mr-2" />
-                      Filters
+                      {showFilters ? 'Hide Filters' : 'Show Filters'}
                     </Button>
                   </div>
                 </div>
 
-                {/* Product Grid */}
-                <div className="px-4 lg:px-6">
-                  {isLoadingProducts ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-muted-foreground">Loading products...</div>
-                    </div>
-                  ) : products.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="text-muted-foreground mb-2">No products found</div>
-                      <p className="text-sm text-muted-foreground">Check back soon for new recommendations</p>
-                    </div>
-                  ) : (
-                    <FashionGrid
-                      products={products}
-                      onProductClick={setSelectedProduct}
-                      likedItems={likedItemIds}
-                      onToggleLike={handleToggleLike}
-                      pendingLikeProductId={pendingLikeProductId}
-                    />
-                  )}
-                </div>
+                {/* Main Content Area (Grid + Sidebar) */}
+                <div className="px-4 lg:px-6 flex flex-col md:flex-row gap-8 items-start">
+                  
+                  {/* Filtering Sidebar Panel */}
+                  {showFilters && (
+                    <div className="w-full md:w-64 flex-shrink-0 space-y-6 border rounded-lg p-5 bg-card text-card-foreground">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Filters</h3>
+                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 text-xs">
+                          Clear All
+                        </Button>
+                      </div>
 
+                      {/* Text Search */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold">Search Items</h4>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="e.g. shirt, jeans..."
+                            className="pl-9 h-9 text-sm"
+                            value={activeFilters.searchQuery}
+                            onChange={(e) => setActiveFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Min/Max Price Inputs */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold">Price Range</h4>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex flex-col w-full">
+                            <span className="text-xs text-muted-foreground mb-1">Min ($)</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={activeFilters.maxPrice}
+                              value={activeFilters.minPrice || ''}
+                              onChange={(e) => setActiveFilters(prev => ({ ...prev, minPrice: parseInt(e.target.value) || 0 }))}
+                              className="h-8 text-sm px-2"
+                              placeholder="0"
+                            />
+                          </div>
+                          <span className="text-muted-foreground mt-4">-</span>
+                          <div className="flex flex-col w-full">
+                            <span className="text-xs text-muted-foreground mb-1">Max ($)</span>
+                            <Input
+                              type="number"
+                              min={activeFilters.minPrice}
+                              max={absoluteMaxPrice}
+                              value={activeFilters.maxPrice || ''}
+                              onChange={(e) => setActiveFilters(prev => ({ ...prev, maxPrice: parseInt(e.target.value) || 0 }))}
+                              className="h-8 text-sm px-2"
+                              placeholder={absoluteMaxPrice.toString()}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Brands (Derived from Domain) */}
+                      {availableBrands.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold">Brands / Domains</h4>
+                          <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            {availableBrands.map(brand => (
+                              <label key={brand} className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={activeFilters.brands.includes(brand)}
+                                  onChange={() => toggleBrand(brand)}
+                                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm text-muted-foreground">{brand}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Product Grid Area */}
+                  <div className="flex-1 w-full">
+                    {isLoadingProducts ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-muted-foreground">Loading products...</div>
+                      </div>
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 border border-dashed rounded-lg bg-muted/30">
+                        <div className="text-muted-foreground mb-2">No products match your filters</div>
+                        <Button variant="link" onClick={clearFilters}>
+                          Clear all filters
+                        </Button>
+                      </div>
+                    ) : (
+                      <FashionGrid
+                        products={filteredProducts}
+                        onProductClick={setSelectedProduct}
+                        likedItems={likedItemIds}
+                        onToggleLike={handleToggleLike}
+                        pendingLikeProductId={pendingLikeProductId}
+                      />
+                    )}
+                  </div>
+
+                </div>
               </div>
             </div>
           </div>
