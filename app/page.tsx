@@ -383,20 +383,15 @@ export default function Page() {
       .slice(0, 4)
   }
 
-  const engineBadgeLabel =
-    recommendationEngine === 'faiss_two_tower_hybrid'
-      ? 'FAISS + two-tower active'
-      : recommendationEngine === 'faiss_two_tower_image_hybrid'
-        ? 'Text + image + two-tower active'
-      : recommendationEngine === 'two_tower_or_cosine_fallback'
-        ? 'Fallback ranking active'
-        : 'Latest-products fallback'
+  const selectedModelLabel =
+    preferredRefreshStrategy === 'hybrid'
+      ? 'Two-Tower Neural Network selected'
+      : 'Content Filtering selected'
 
-  const engineBadgeVariant =
-    recommendationEngine === 'faiss_two_tower_hybrid' ||
-    recommendationEngine === 'faiss_two_tower_image_hybrid'
-      ? 'default'
-      : 'outline'
+  const selectedModelDescription =
+    preferredRefreshStrategy === 'hybrid'
+      ? 'The Two-Tower neural network blends multiple signals to surface more diverse and novel recommendations.'
+      : 'Content filtering compares image embeddings only, so it is best for finding items that look very similar to your liked products and uploaded photos.'
 
   return (
     <ChatLayout>
@@ -440,7 +435,7 @@ export default function Page() {
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {autoRefreshOnLike
-                              ? `Likes rerun your ${preferredRefreshStrategy} recommender in the background.`
+                              ? `Likes rerun your ${preferredRefreshStrategy === 'hybrid' ? 'Two-Tower neural network' : 'content filtering model'} in the background.`
                               : 'Likes update instantly, and you choose when to rerun recommendations.'}
                           </p>
                         </div>
@@ -452,7 +447,7 @@ export default function Page() {
                             onClick={() => handleRefreshRecommendations('hybrid')}
                           >
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingRecommendations && preferredRefreshStrategy === 'hybrid' ? 'animate-spin' : ''}`} />
-                            Refresh Hybrid
+                            Refresh Hybrid Model
                           </Button>
                           <Button
                             variant={preferredRefreshStrategy === 'content' ? 'default' : 'outline'}
@@ -461,10 +456,13 @@ export default function Page() {
                             onClick={() => handleRefreshRecommendations('content')}
                           >
                             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingRecommendations && preferredRefreshStrategy === 'content' ? 'animate-spin' : ''}`} />
-                            Refresh Content
+                            Refresh Content Filtering
                           </Button>
                         </div>
                       </div>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedModelDescription}
+                      </p>
                       {recommendationsNeedRefresh && (
                         <p className="text-sm text-amber-700">
                           Your likes changed. Refresh recommendations when you are ready.
@@ -474,24 +472,13 @@ export default function Page() {
                     <div className="flex flex-wrap gap-2">
                       {recommendationMode === 'personalized_image' || recommendationMode === 'personalized_hybrid_api' ? (
                         <>
-                          <Badge variant="secondary">
-                            {recommendationMode === 'personalized_hybrid_api'
-                              ? 'Personalized by hybrid ranker'
-                              : 'Personalized by image likes'}
-                          </Badge>
-                          <Badge variant={engineBadgeVariant}>
-                            {engineBadgeLabel}
-                          </Badge>
-                          <Badge variant="outline">
-                            {preferredRefreshStrategy === 'hybrid' ? 'Hybrid refresh selected' : 'Content refresh selected'}
-                          </Badge>
+                          <Badge variant="secondary">{selectedModelLabel}</Badge>
                           <Badge variant="outline">{products.length} recommendations</Badge>
                         </>
                       ) : (
                         <>
                           <Badge variant="secondary">Latest products</Badge>
-                          <Badge variant={engineBadgeVariant}>{engineBadgeLabel}</Badge>
-                          <Badge variant="outline">Set likes at signup for personalization</Badge>
+                          <Badge variant="outline">{products.length} recommendations</Badge>
                         </>
                       )}
                     </div>
@@ -503,7 +490,7 @@ export default function Page() {
                     <div className="mb-3">
                       <h2 className="text-xl font-semibold">Already Liked</h2>
                       <p className="text-sm text-muted-foreground">
-                        {likedProducts.length} items you selected during signup
+                        {likedProducts.length} items you liked
                       </p>
                     </div>
                     <FashionGrid
@@ -512,6 +499,7 @@ export default function Page() {
                       likedItems={likedItemIds}
                       onToggleLike={handleToggleLike}
                       pendingLikeProductId={pendingLikeProductId}
+                      maxTopPickCount={0}
                     />
                   </div>
                 )}
@@ -554,6 +542,7 @@ export default function Page() {
                       likedItems={likedItemIds}
                       onToggleLike={handleToggleLike}
                       pendingLikeProductId={pendingLikeProductId}
+                      maxTopPickCount={8}
                     />
                   )}
                 </div>

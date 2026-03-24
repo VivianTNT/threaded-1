@@ -15,6 +15,7 @@ interface FashionGridProps {
   likedItems: Set<string>
   onToggleLike: (product: FashionProduct) => void
   pendingLikeProductId?: string | null
+  maxTopPickCount?: number
 }
 
 export function FashionGrid({
@@ -23,6 +24,7 @@ export function FashionGrid({
   likedItems,
   onToggleLike,
   pendingLikeProductId,
+  maxTopPickCount = 0,
 }: FashionGridProps) {
   const { addToCart, isInCart } = useCart()
 
@@ -33,7 +35,7 @@ export function FashionGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {products.map((product) => (
+      {products.map((product, index) => (
         <Card
           key={product.id}
           className="group cursor-pointer overflow-hidden transition-all hover:shadow-lg"
@@ -66,7 +68,7 @@ export function FashionGrid({
                 <Heart className={cn("h-4 w-4", likedItems.has(product.id) && "fill-current")} />
               </Button>
             </div>
-            {product.recommendation_score && product.recommendation_score >= 90 && (
+            {index < maxTopPickCount && Number.isFinite(product.recommendation_score) && (
               <div className="absolute top-2 left-2">
                 <Badge className="bg-primary/90 backdrop-blur-sm flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
