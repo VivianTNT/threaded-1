@@ -82,7 +82,7 @@ async function loadProductsByIds(ids: string[]): Promise<ProductRow[]> {
   for (const chunk of chunkArray(uniqueIds, SUPABASE_IN_FILTER_BATCH_SIZE)) {
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,brand_name,image_url,price,product_url,category,description')
+      .select('id,name,domain,image_url,price,product_url,category,description')
       .in('id', chunk)
 
     if (error) {
@@ -100,7 +100,7 @@ async function loadProductsByIds(ids: string[]): Promise<ProductRow[]> {
 async function loadLatestProductsForHybrid(limit: number): Promise<ProductRow[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('id,name,brand_name,image_url,price,product_url,category,description')
+    .select('id,name,domain,image_url,price,product_url,category,description')
     .not('image_url', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limit)

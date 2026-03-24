@@ -15,6 +15,34 @@ export interface PennProduct {
   currency: string | null
 }
 
+export function formatDomainAsBrand(domain: string | null | undefined): string {
+  const raw = String(domain || '').trim().toLowerCase()
+  if (!raw) return 'Unknown Brand'
+
+  const withoutProtocol = raw.replace(/^https?:\/\//, '')
+  const hostname = withoutProtocol.split('/')[0]?.replace(/^www\./, '') || ''
+  const segments = hostname.split('.').filter(Boolean)
+
+  if (!segments.length) return 'Unknown Brand'
+
+  let brandSegment = segments[0]
+  if (segments.length >= 2) {
+    const last = segments[segments.length - 1]
+    const secondLast = segments[segments.length - 2]
+
+    if (last.length === 2 && ['co', 'com', 'org', 'net'].includes(secondLast) && segments.length >= 3) {
+      brandSegment = segments[segments.length - 3]
+    } else {
+      brandSegment = secondLast
+    }
+  }
+
+  const cleaned = brandSegment.replace(/[-_]+/g, ' ').trim()
+  if (!cleaned) return 'Unknown Brand'
+
+  return cleaned.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 // Transform Penn product to FashionProduct
 export function transformPennProduct(pennProduct: PennProduct): FashionProduct {
   // Generate a placeholder image if none exists
@@ -39,7 +67,7 @@ export function transformPennProduct(pennProduct: PennProduct): FashionProduct {
     id: pennProduct.id,
     user_id: null,
     name: pennProduct.name || 'Fashion Item',
-    brand: pennProduct.brand_name || pennProduct.domain?.replace('.com', '').replace('www.', '') || 'Unknown Brand',
+    brand: formatDomainAsBrand(pennProduct.domain),
     category,
     style: ['Casual'], // Default style
     price: pennProduct.price || 0,
