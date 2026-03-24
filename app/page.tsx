@@ -8,9 +8,11 @@ import { useRequireAuth } from '@/lib/auth-utils'
 import { FashionGrid } from '@/components/fashion-recommendations/fashion-grid'
 import { ProductDetailPanel } from '@/components/fashion-recommendations/product-detail-panel'
 import { FashionProduct } from '@/lib/types/fashion-product'
-import { Sparkles, Filter } from 'lucide-react'
+import { Sparkles, Filter, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 import {
   SidebarInset,
@@ -29,11 +31,16 @@ type ProductsResponse = {
   cached?: boolean
 }
 
+type RecommendationRefreshStrategy = 'hybrid' | 'content'
+
 type RecommendationViewCache = {
   userId: string
   data: ProductsResponse
   selectedProductId: string | null
   showFilters: boolean
+  autoRefreshOnLike: boolean
+  preferredRefreshStrategy: RecommendationRefreshStrategy
+  recommendationsNeedRefresh: boolean
   savedAt: number
 }
 
@@ -96,7 +103,12 @@ export default function Page() {
   const [recommendationMode, setRecommendationMode] = React.useState<string>('latest_fallback')
   const [recommendationEngine, setRecommendationEngine] = React.useState<string>('latest_products_fallback')
   const [showFilters, setShowFilters] = React.useState(false)
+  const [autoRefreshOnLike, setAutoRefreshOnLike] = React.useState(true)
+  const [preferredRefreshStrategy, setPreferredRefreshStrategy] =
+    React.useState<RecommendationRefreshStrategy>('hybrid')
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
+  const [isRefreshingRecommendations, setIsRefreshingRecommendations] = React.useState(false)
+  const [recommendationsNeedRefresh, setRecommendationsNeedRefresh] = React.useState(false)
   const [pendingLikeProductId, setPendingLikeProductId] = React.useState<string | null>(null)
   const allProducts = React.useMemo(() => {
     return [...likedProducts, ...products]
@@ -104,6 +116,26 @@ export default function Page() {
   const likedItemIds = React.useMemo(() => {
     return new Set(likedProducts.map((product) => product.id))
   }, [likedProducts])
+  const selectedProductIdRef = React.useRef<string | null>(null)
+  const showFiltersRef = React.useRef(showFilters)
+  const autoRefreshOnLikeRef = React.useRef(autoRefreshOnLike)
+  const preferredRefreshStrategyRef = React.useRef<RecommendationRefreshStrategy>(preferredRefreshStrategy)
+
+  React.useEffect(() => {
+    selectedProductIdRef.current = selectedProduct?.id || null
+  }, [selectedProduct])
+
+  React.useEffect(() => {
+    showFiltersRef.current = showFilters
+  }, [showFilters])
+
+  React.useEffect(() => {
+    autoRefreshOnLikeRef.current = autoRefreshOnLike
+  }, [autoRefreshOnLike])
+
+  React.useEffect(() => {
+    preferredRefreshStrategyRef.current = preferredRefreshStrategy
+  }, [preferredRefreshStrategy])
 
   const applyProductsResponse = React.useCallback(
     (data: ProductsResponse, selectedProductId: string | null, nextShowFilters: boolean) => {
@@ -122,10 +154,19 @@ export default function Page() {
     []
   )
 
-  const fetchProducts = async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+  const fetchProducts = React.useCallback(async ({
+    showLoading = true,
+    strategy = preferredRefreshStrategyRef.current,
+    forceRefresh = false,
+  }: {
+    showLoading?: boolean
+    strategy?: RecommendationRefreshStrategy
+    forceRefresh?: boolean
+  } = {}) => {
     if (!user) return
 
     try {
+      setIsRefreshingRecommendations(true)
       if (showLoading) {
         setIsLoadingProducts(true)
       }
@@ -133,22 +174,31 @@ export default function Page() {
         limit: '50',
         userId: user.id || '',
         userEmail: user.email || '',
+        strategy,
       })
+      if (forceRefresh) {
+        params.set('forceRefresh', '1')
+      }
       const response = await fetch(`/api/products?${params.toString()}`)
       const data = await response.json()
 
       if (data.success) {
         applyProductsResponse(
           data as ProductsResponse,
-          selectedProduct?.id || null,
-          showFilters
+          selectedProductIdRef.current,
+          showFiltersRef.current
         )
+        setPreferredRefreshStrategy(strategy)
+        setRecommendationsNeedRefresh(false)
 
         writeRecommendationViewCache({
           userId: user.id,
           data: data as ProductsResponse,
-          selectedProductId: selectedProduct?.id || null,
-          showFilters,
+          selectedProductId: selectedProductIdRef.current,
+          showFilters: showFiltersRef.current,
+          autoRefreshOnLike: autoRefreshOnLikeRef.current,
+          preferredRefreshStrategy: strategy,
+          recommendationsNeedRefresh: false,
           savedAt: Date.now(),
         })
       } else {
@@ -158,30 +208,35 @@ export default function Page() {
       console.error('Error fetching products:', error)
     } finally {
       setIsLoadingProducts(false)
+      setIsRefreshingRecommendations(false)
     }
-  }
+  }, [user, applyProductsResponse])
 
   React.useEffect(() => {
     if (user) {
       const cachedView = readRecommendationViewCache(user.id)
       if (cachedView?.data?.success) {
+        const cachedStrategy = cachedView.preferredRefreshStrategy === 'content' ? 'content' : 'hybrid'
         applyProductsResponse(
           cachedView.data,
           cachedView.selectedProductId,
           cachedView.showFilters
         )
+        setAutoRefreshOnLike(cachedView.autoRefreshOnLike ?? true)
+        setPreferredRefreshStrategy(cachedStrategy)
+        setRecommendationsNeedRefresh(Boolean(cachedView.recommendationsNeedRefresh))
         setIsLoadingProducts(false)
 
         const shouldRevalidate = Date.now() - cachedView.savedAt > CLIENT_REVALIDATE_AFTER_MS
         if (shouldRevalidate) {
-          void fetchProducts({ showLoading: false })
+          void fetchProducts({ showLoading: false, strategy: cachedStrategy })
         }
         return
       }
 
-      void fetchProducts({ showLoading: true })
+      void fetchProducts({ showLoading: true, strategy: 'hybrid' })
     }
-  }, [user, applyProductsResponse])
+  }, [user, applyProductsResponse, fetchProducts])
 
   React.useEffect(() => {
     if (!user) return
@@ -198,9 +253,23 @@ export default function Page() {
       },
       selectedProductId: selectedProduct?.id || null,
       showFilters,
+      autoRefreshOnLike,
+      preferredRefreshStrategy,
+      recommendationsNeedRefresh,
       savedAt: Date.now(),
     })
-  }, [user, products, likedProducts, recommendationMode, recommendationEngine, selectedProduct, showFilters])
+  }, [
+    user,
+    products,
+    likedProducts,
+    recommendationMode,
+    recommendationEngine,
+    selectedProduct,
+    showFilters,
+    autoRefreshOnLike,
+    preferredRefreshStrategy,
+    recommendationsNeedRefresh,
+  ])
 
   const applyOptimisticLikeToggle = React.useCallback(
     (product: FashionProduct, action: 'like' | 'unlike') => {
@@ -263,7 +332,15 @@ export default function Page() {
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to update liked products')
       }
-      void fetchProducts({ showLoading: false })
+      if (autoRefreshOnLike) {
+        void fetchProducts({
+          showLoading: false,
+          strategy: preferredRefreshStrategy,
+          forceRefresh: true,
+        })
+      } else {
+        setRecommendationsNeedRefresh(true)
+      }
     } catch (error) {
       console.error('Failed to toggle like:', error)
       setProducts(previousProducts)
@@ -284,6 +361,15 @@ export default function Page() {
 
   if (!user) {
     return null // Will redirect to login
+  }
+
+  const handleRefreshRecommendations = (strategy: RecommendationRefreshStrategy) => {
+    setPreferredRefreshStrategy(strategy)
+    void fetchProducts({
+      showLoading: products.length === 0 && likedProducts.length === 0,
+      strategy,
+      forceRefresh: true,
+    })
   }
 
   // Get similar products based on category and style
@@ -339,6 +425,52 @@ export default function Page() {
                     <p className="text-muted-foreground mb-4">
                       Discover curated items tailored to your personal style. Our AI analyzes your preferences to find pieces you'll love.
                     </p>
+                    <div className="mb-4 flex flex-col gap-3 rounded-lg border bg-background/80 p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              id="auto-refresh-recommendations"
+                              checked={autoRefreshOnLike}
+                              onCheckedChange={setAutoRefreshOnLike}
+                            />
+                            <Label htmlFor="auto-refresh-recommendations">
+                              Auto-refresh recommendations after likes/unlikes
+                            </Label>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {autoRefreshOnLike
+                              ? `Likes rerun your ${preferredRefreshStrategy} recommender in the background.`
+                              : 'Likes update instantly, and you choose when to rerun recommendations.'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant={preferredRefreshStrategy === 'hybrid' ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={isRefreshingRecommendations}
+                            onClick={() => handleRefreshRecommendations('hybrid')}
+                          >
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingRecommendations && preferredRefreshStrategy === 'hybrid' ? 'animate-spin' : ''}`} />
+                            Refresh Hybrid
+                          </Button>
+                          <Button
+                            variant={preferredRefreshStrategy === 'content' ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={isRefreshingRecommendations}
+                            onClick={() => handleRefreshRecommendations('content')}
+                          >
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingRecommendations && preferredRefreshStrategy === 'content' ? 'animate-spin' : ''}`} />
+                            Refresh Content
+                          </Button>
+                        </div>
+                      </div>
+                      {recommendationsNeedRefresh && (
+                        <p className="text-sm text-amber-700">
+                          Your likes changed. Refresh recommendations when you are ready.
+                        </p>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {recommendationMode === 'personalized_image' || recommendationMode === 'personalized_hybrid_api' ? (
                         <>
@@ -349,6 +481,9 @@ export default function Page() {
                           </Badge>
                           <Badge variant={engineBadgeVariant}>
                             {engineBadgeLabel}
+                          </Badge>
+                          <Badge variant="outline">
+                            {preferredRefreshStrategy === 'hybrid' ? 'Hybrid refresh selected' : 'Content refresh selected'}
                           </Badge>
                           <Badge variant="outline">{products.length} recommendations</Badge>
                         </>

@@ -36,9 +36,11 @@ type RecommendationEngine =
   | 'latest_products_fallback'
 
 type PersonalizedRecommendationMode = 'personalized_hybrid_api' | 'personalized_image'
+type RecommendationRequestStrategy = 'hybrid' | 'content'
 
 type RecommendationSnapshotRow = {
   user_id: string
+  request_strategy: RecommendationRequestStrategy
   snapshot_key: string
   catalog_marker: string | null
   mode: PersonalizedRecommendationMode
@@ -51,6 +53,7 @@ type RecommendationSnapshotRow = {
 
 type RecommendationSnapshotPayload = {
   userId: string
+  requestStrategy: RecommendationRequestStrategy
   snapshotKey: string
   catalogMarker: string | null
   mode: PersonalizedRecommendationMode
@@ -75,7 +78,7 @@ const SUPABASE_SELECT_PAGE_SIZE = 500
 const SUPABASE_IN_FILTER_BATCH_SIZE = 200
 const DEFAULT_RECOMMENDATION_SNAPSHOT_TTL_MINUTES = 30
 const DEFAULT_RECOMMENDATION_SNAPSHOT_LIMIT = 200
-const RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION = 1
+const RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION = 2
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
@@ -117,14 +120,31 @@ function asMetadataStringArray(value: unknown): string[] {
 
 function isMissingSnapshotTableError(message: string | undefined): boolean {
   const normalized = String(message || '').toLowerCase()
-  return normalized.includes('user_recommendation_snapshots') || normalized.includes('recommendation_snapshot')
+  return (
+    normalized.includes('user_recommendation_snapshots') ||
+    normalized.includes('recommendation_snapshot') ||
+    normalized.includes('request_strategy') ||
+    normalized.includes('on conflict specification') ||
+    normalized.includes('no unique or exclusion constraint')
+  )
 }
 
-function buildRecommendationSnapshotKey(likedIds: string[], shownIds: string[]): string {
+function normalizeRecommendationRequestStrategy(
+  raw: string | null | undefined
+): RecommendationRequestStrategy {
+  return raw === 'content' ? 'content' : 'hybrid'
+}
+
+function buildRecommendationSnapshotKey(
+  likedIds: string[],
+  shownIds: string[],
+  requestStrategy: RecommendationRequestStrategy
+): string {
   return createHash('sha256')
     .update(
       JSON.stringify({
         version: RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION,
+        requestStrategy,
         likedIds,
         shownIds,
       })
@@ -165,11 +185,17 @@ async function getCatalogMarker(): Promise<string | null> {
   return data?.[0]?.created_at || null
 }
 
-async function getRecommendationSnapshot(userId: string): Promise<RecommendationSnapshotRow | null> {
+async function getRecommendationSnapshot(
+  userId: string,
+  requestStrategy: RecommendationRequestStrategy
+): Promise<RecommendationSnapshotRow | null> {
   const { data, error } = await supabase
     .from('user_recommendation_snapshots')
-    .select('user_id,snapshot_key,catalog_marker,mode,engine,recommended_product_ids,recommendation_scores,total,expires_at')
+    .select(
+      'user_id,request_strategy,snapshot_key,catalog_marker,mode,engine,recommended_product_ids,recommendation_scores,total,expires_at'
+    )
     .eq('user_id', userId)
+    .eq('request_strategy', requestStrategy)
     .maybeSingle()
 
   if (error) {
@@ -184,18 +210,22 @@ async function saveRecommendationSnapshot(payload: RecommendationSnapshotPayload
   const expiresAt = new Date(Date.now() + getRecommendationSnapshotTtlMinutes() * 60 * 1000).toISOString()
   const { error } = await supabase
     .from('user_recommendation_snapshots')
-    .upsert({
-      user_id: payload.userId,
-      snapshot_key: payload.snapshotKey,
-      catalog_marker: payload.catalogMarker,
-      mode: payload.mode,
-      engine: payload.engine,
-      recommended_product_ids: payload.recommendedProductIds,
-      recommendation_scores: payload.recommendationScores,
-      total: payload.total,
-      computed_at: new Date().toISOString(),
-      expires_at: expiresAt,
-    })
+    .upsert(
+      {
+        user_id: payload.userId,
+        request_strategy: payload.requestStrategy,
+        snapshot_key: payload.snapshotKey,
+        catalog_marker: payload.catalogMarker,
+        mode: payload.mode,
+        engine: payload.engine,
+        recommended_product_ids: payload.recommendedProductIds,
+        recommendation_scores: payload.recommendationScores,
+        total: payload.total,
+        computed_at: new Date().toISOString(),
+        expires_at: expiresAt,
+      },
+      { onConflict: 'user_id,request_strategy' }
+    )
 
   if (error && !isMissingSnapshotTableError(error.message)) {
     throw new Error(`Failed to save recommendation snapshot: ${error.message}`)
@@ -354,25 +384,12 @@ async function getProductEmbeddingsByIds(ids: string[]): Promise<Map<string, num
 
 async function rerankHybridResultsWithImageSignals(
   hybridScored: ScoredId[],
-  likedIds: string[]
+  userImageSignal: number[] | null
 ): Promise<ScoredId[]> {
-  if (!hybridScored.length || !likedIds.length) return hybridScored
+  if (!hybridScored.length || !userImageSignal?.length) return hybridScored
 
-  const embeddingIds = Array.from(new Set([...likedIds, ...hybridScored.map((row) => row.id)]))
-  const embeddings = await getProductEmbeddingsByIds(embeddingIds)
-  const likedVectors = likedIds
-    .map((id) => embeddings.get(id))
-    .filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
-
-  if (!likedVectors.length) return hybridScored
-
-  const imageUserVec = l2Normalize(
-    likedVectors[0].map((_, index) => {
-      let sum = 0
-      for (const vec of likedVectors) sum += vec[index]
-      return sum / likedVectors.length
-    })
-  )
+  const imageUserVec = l2Normalize(userImageSignal)
+  const embeddings = await getProductEmbeddingsByIds(hybridScored.map((row) => row.id))
 
   const reranked = hybridScored.map((row) => {
     const candidateVec = embeddings.get(row.id)
@@ -524,12 +541,23 @@ async function computePersonalizedRecommendations(
   likedIds: string[],
   shownIds: string[],
   userRow: UserRecRow,
-  requiredCount: number
+  requiredCount: number,
+  requestStrategy: RecommendationRequestStrategy
 ): Promise<PersonalizedRecommendationResult | null> {
   const snapshotLimit = Math.max(requiredCount, getRecommendationSnapshotLimit())
   const excluded = new Set<string>([...likedIds, ...shownIds])
+  const likedProductUserVec = likedIds.length
+    ? await computeUserImageEmbeddingFromLikedProducts(supabase, likedIds)
+    : null
+  const uploadedImageUserVec = parseVector(userRow.metadata?.uploaded_image_embedding_avg)
+  const recomputedUserVec = await computeUserImageEmbeddingFromVectors(
+    [likedProductUserVec, uploadedImageUserVec].filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
+  )
+  const userVec = recomputedUserVec && recomputedUserVec.length > 0
+    ? recomputedUserVec
+    : parseVector(userRow.user_image_embedding_avg)
 
-  if (likedProductsRaw.length > 0) {
+  if (requestStrategy === 'hybrid' && likedProductsRaw.length > 0) {
     try {
       const catalogProducts = await getCatalogProductsForHybrid(HYBRID_CATALOG_LIMIT)
       const hybridScored = await scoreProductsWithHybridCatalogApi(
@@ -540,7 +568,7 @@ async function computePersonalizedRecommendations(
       )
 
       if (hybridScored.length > 0) {
-        const multimodalScored = await rerankHybridResultsWithImageSignals(hybridScored, likedIds)
+        const multimodalScored = await rerankHybridResultsWithImageSignals(hybridScored, userVec)
         const storedRows = multimodalScored.slice(0, snapshotLimit)
 
         return {
@@ -556,16 +584,6 @@ async function computePersonalizedRecommendations(
     }
   }
 
-  const likedProductUserVec = likedIds.length
-    ? await computeUserImageEmbeddingFromLikedProducts(supabase, likedIds)
-    : null
-  const uploadedImageUserVec = parseVector(userRow.metadata?.uploaded_image_embedding_avg)
-  const recomputedUserVec = await computeUserImageEmbeddingFromVectors(
-    [likedProductUserVec, uploadedImageUserVec].filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
-  )
-  const userVec = recomputedUserVec && recomputedUserVec.length > 0
-    ? recomputedUserVec
-    : parseVector(userRow.user_image_embedding_avg)
   if (userVec && userVec.length > 0) {
     const scored = await scoreProductsByUserImageEmbedding(userVec, excluded)
     const storedRows = scored.slice(0, snapshotLimit)
@@ -589,6 +607,8 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const userId = searchParams.get('userId')
     const userEmail = searchParams.get('userEmail')
+    const requestStrategy = normalizeRecommendationRequestStrategy(searchParams.get('strategy'))
+    const forceRefresh = searchParams.get('forceRefresh') === '1'
 
     const userRow = await getUserRow(userId, userEmail)
     const likedIds = getStoredLikedProductIds(userRow)
@@ -603,8 +623,8 @@ export async function GET(request: Request) {
     if (userRow) {
       const requiredCount = Math.max(limit + offset, limit)
       const catalogMarker = await getCatalogMarker()
-      const snapshotKey = buildRecommendationSnapshotKey(likedIds, shownIds)
-      const snapshot = await getRecommendationSnapshot(userRow.id)
+      const snapshotKey = buildRecommendationSnapshotKey(likedIds, shownIds, requestStrategy)
+      const snapshot = forceRefresh ? null : await getRecommendationSnapshot(userRow.id, requestStrategy)
 
       if (isRecommendationSnapshotUsable(snapshot, snapshotKey, catalogMarker, requiredCount)) {
         const fashionProducts = await hydrateRecommendationProducts(
@@ -633,12 +653,14 @@ export async function GET(request: Request) {
         likedIds,
         shownIds,
         userRow,
-        requiredCount
+        requiredCount,
+        requestStrategy
       )
 
       if (personalized) {
         await saveRecommendationSnapshot({
           userId: userRow.id,
+          requestStrategy,
           snapshotKey,
           catalogMarker,
           mode: personalized.mode,
