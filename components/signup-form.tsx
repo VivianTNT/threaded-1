@@ -16,13 +16,10 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth-context"
 import { useRedirectIfAuthenticated } from "@/lib/auth-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle, Info, Upload, Camera, X } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
 
 const SIGNUP_SAMPLE_SIZE = 16
 const SIGNUP_MIN_LIKES = 3
@@ -69,10 +66,6 @@ export function SignupForm({
     name: "",
     email: "",
     password: "",
-    stylePreferences: [] as string[],
-    budgetRange: "",
-    favoriteColors: "",
-    bio: ""
   })
 
   // Redirect if already authenticated
@@ -93,22 +86,9 @@ export function SignupForm({
     }
   }, [])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
     setFormData(prev => ({ ...prev, [id]: value }))
-  }
-
-  const handleSelectChange = (value: string) => {
-    setFormData(prev => ({ ...prev, budgetRange: value }))
-  }
-
-  const toggleStylePreference = (style: string) => {
-    setFormData(prev => ({
-      ...prev,
-      stylePreferences: prev.stylePreferences.includes(style)
-        ? prev.stylePreferences.filter(s => s !== style)
-        : [...prev.stylePreferences, style]
-    }))
   }
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -227,10 +207,6 @@ export function SignupForm({
         formData.password,
         {
           name: formData.name,
-          stylePreferences: formData.stylePreferences,
-          budgetRange: formData.budgetRange,
-          favoriteColors: formData.favoriteColors,
-          bio: formData.bio,
           likedProductIds,
           shownProductIds: sampleProducts.map((p) => p.id),
           uploadedClothingPhotos: uploadedClothingPhotos.map((photo) => photo.file),
@@ -273,17 +249,6 @@ export function SignupForm({
     }
   }
 
-  const styleOptions = [
-    "Minimalist",
-    "Classic",
-    "Casual",
-    "Business Casual",
-    "Athleisure",
-    "Bohemian",
-    "Streetwear",
-    "Elegant"
-  ]
-
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -308,7 +273,7 @@ export function SignupForm({
           <Tabs value={step} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="account" disabled={step === "preferences"}>Account</TabsTrigger>
-              <TabsTrigger value="preferences" disabled={step === "account"}>Style Preferences</TabsTrigger>
+              <TabsTrigger value="preferences" disabled={step === "account"}>Pick Products</TabsTrigger>
             </TabsList>
             <TabsContent value="account">
               <form onSubmit={handleNextStep}>
@@ -477,61 +442,6 @@ export function SignupForm({
                         <p className="text-xs text-muted-foreground">Great, you are ready to continue</p>
                       )}
                     </div>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label>Style Preferences (select all that apply)</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {styleOptions.map((style) => (
-                        <div key={style} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={style}
-                            checked={formData.stylePreferences.includes(style)}
-                            onCheckedChange={() => toggleStylePreference(style)}
-                          />
-                          <label
-                            htmlFor={style}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {style}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="budgetRange">Budget Range (optional)</Label>
-                    <Select value={formData.budgetRange} onValueChange={handleSelectChange}>
-                      <SelectTrigger id="budgetRange">
-                        <SelectValue placeholder="Select budget range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="budget">Budget Friendly ($0-$50)</SelectItem>
-                        <SelectItem value="midrange">Mid-Range ($50-$200)</SelectItem>
-                        <SelectItem value="premium">Premium ($200-$500)</SelectItem>
-                        <SelectItem value="luxury">Luxury ($500+)</SelectItem>
-                        <SelectItem value="mixed">Mixed Range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="favoriteColors">Favorite Colors (optional)</Label>
-                    <Input
-                      id="favoriteColors"
-                      placeholder="e.g., Black, Navy, Beige, Emerald"
-                      value={formData.favoriteColors}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="bio">About You (optional)</Label>
-                    <Textarea
-                      id="bio"
-                      placeholder="Tell us about your style goals, what occasions you dress for, or anything that helps us understand your fashion needs..."
-                      className="min-h-24"
-                      value={formData.bio}
-                      onChange={handleChange}
-                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Button

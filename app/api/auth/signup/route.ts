@@ -203,10 +203,6 @@ export async function POST(request: Request) {
       email: email,
       liked_product_ids: storedLikedProductIds,
       metadata: {
-        style_preferences: userData.stylePreferences || [],
-        budget_range: userData.budgetRange || '',
-        favorite_colors: userData.favoriteColors || '',
-        bio: userData.bio || '',
         liked_product_ids: storedLikedProductIds,
         shown_product_ids: shownProductIds,
         recommended_product_ids: recommendedProductIds,
