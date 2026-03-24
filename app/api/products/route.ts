@@ -4,7 +4,11 @@ import { createHash } from 'crypto'
 import { transformPennProduct, PennProduct } from '@/lib/penn-products'
 import { cosineSimilarity, l2Normalize, parseVector } from '@/lib/recommendations/image-content'
 import { rankWithTwoTower } from '@/lib/recommendations/model-service'
-import { computeUserImageEmbeddingFromLikedProducts, getStoredLikedProductIds } from '@/lib/users/liked-products'
+import {
+  computeUserImageEmbeddingFromLikedProducts,
+  computeUserImageEmbeddingFromVectors,
+  getStoredLikedProductIds,
+} from '@/lib/users/liked-products'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -552,9 +556,13 @@ async function computePersonalizedRecommendations(
     }
   }
 
-  const recomputedUserVec = likedIds.length
+  const likedProductUserVec = likedIds.length
     ? await computeUserImageEmbeddingFromLikedProducts(supabase, likedIds)
     : null
+  const uploadedImageUserVec = parseVector(userRow.metadata?.uploaded_image_embedding_avg)
+  const recomputedUserVec = await computeUserImageEmbeddingFromVectors(
+    [likedProductUserVec, uploadedImageUserVec].filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
+  )
   const userVec = recomputedUserVec && recomputedUserVec.length > 0
     ? recomputedUserVec
     : parseVector(userRow.user_image_embedding_avg)

@@ -123,6 +123,37 @@ function recencyWeightedAverage(vectors: number[][]): number[] {
   return l2Normalize(out.map((value) => value / totalWeight))
 }
 
+export function normalizeEmbeddingVectors(value: unknown): number[][] {
+  if (!Array.isArray(value)) return []
+
+  const out: number[][] = []
+  for (const item of value) {
+    const vec = parseVector(item)
+    if (!vec || vec.length === 0) continue
+    out.push(l2Normalize(vec))
+  }
+  return out
+}
+
+export async function computeUserImageEmbeddingFromVectors(vectors: number[][]): Promise<number[] | null> {
+  const cleanVectors = vectors
+    .filter((vec) => Array.isArray(vec) && vec.length > 0)
+    .map((vec) => l2Normalize(vec))
+
+  if (!cleanVectors.length) return null
+
+  const sourceDim = cleanVectors[0]?.length || 0
+  const compatibleVectors = cleanVectors.filter((vec) => vec.length === sourceDim)
+  if (!compatibleVectors.length) return null
+
+  const modelEmbedding = await buildUserEmbeddingWithTwoTower(compatibleVectors)
+  if (modelEmbedding && modelEmbedding.length === sourceDim) {
+    return l2Normalize(modelEmbedding)
+  }
+
+  return recencyWeightedAverage(compatibleVectors)
+}
+
 export async function computeUserImageEmbeddingFromLikedProducts(
   supabase: SupabaseClient<any, any, any>,
   likedProductIds: string[]
@@ -153,13 +184,5 @@ export async function computeUserImageEmbeddingFromLikedProducts(
     .map((productId) => embeddingsByProductId.get(productId))
     .filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
 
-  if (!orderedVectors.length) return null
-
-  const sourceDim = orderedVectors[0]?.length || 0
-  const modelEmbedding = await buildUserEmbeddingWithTwoTower(orderedVectors)
-  if (modelEmbedding && modelEmbedding.length === sourceDim) {
-    return l2Normalize(modelEmbedding)
-  }
-
-  return recencyWeightedAverage(orderedVectors)
+  return computeUserImageEmbeddingFromVectors(orderedVectors)
 }

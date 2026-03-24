@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,11 +21,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/lib/auth-context"
 import { useRedirectIfAuthenticated } from "@/lib/auth-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, AlertCircle, Info } from "lucide-react"
+import { CheckCircle, AlertCircle, Info, Upload, Camera, X } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 
 const SIGNUP_SAMPLE_SIZE = 16
 const SIGNUP_MIN_LIKES = 3
+const SIGNUP_UPLOAD_LIMIT = 5
+const SIGNUP_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 
 type OnboardingProductCard = {
   id: string
@@ -37,6 +39,11 @@ type OnboardingProductCard = {
   category: string | null
   description: string | null
   similarity?: number
+}
+
+type UploadedClothingPhoto = {
+  file: File
+  previewUrl: string
 }
 
 export function SignupForm({
@@ -54,6 +61,8 @@ export function SignupForm({
   const [sampleProducts, setSampleProducts] = useState<OnboardingProductCard[]>([])
   const [likedProductIds, setLikedProductIds] = useState<string[]>([])
   const [isLoadingSample, setIsLoadingSample] = useState(false)
+  const [uploadedClothingPhotos, setUploadedClothingPhotos] = useState<UploadedClothingPhoto[]>([])
+  const uploadedClothingPhotosRef = useRef<UploadedClothingPhoto[]>([])
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -73,6 +82,16 @@ export function SignupForm({
     if (step !== "preferences" || sampleProducts.length > 0) return
     void loadSignupSample()
   }, [step, sampleProducts.length])
+
+  useEffect(() => {
+    uploadedClothingPhotosRef.current = uploadedClothingPhotos
+  }, [uploadedClothingPhotos])
+
+  useEffect(() => {
+    return () => {
+      uploadedClothingPhotosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+    }
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
@@ -145,6 +164,57 @@ export function SignupForm({
     })
   }
 
+  const addUploadedClothingPhotos = (files: FileList | null) => {
+    if (!files) return
+
+    const remainingSlots = SIGNUP_UPLOAD_LIMIT - uploadedClothingPhotos.length
+    if (remainingSlots <= 0) {
+      setAlert({
+        type: "info",
+        message: `You can upload up to ${SIGNUP_UPLOAD_LIMIT} clothing photos.`
+      })
+      return
+    }
+
+    const nextPhotos: UploadedClothingPhoto[] = []
+    for (const file of Array.from(files).slice(0, remainingSlots)) {
+      if (!file.type.startsWith("image/")) {
+        setAlert({
+          type: "error",
+          message: `${file.name} is not a supported image file.`
+        })
+        continue
+      }
+
+      if (file.size > SIGNUP_UPLOAD_MAX_BYTES) {
+        setAlert({
+          type: "error",
+          message: `${file.name} is larger than 10MB.`
+        })
+        continue
+      }
+
+      nextPhotos.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
+    }
+
+    if (nextPhotos.length > 0) {
+      setUploadedClothingPhotos((prev) => [...prev, ...nextPhotos])
+    }
+  }
+
+  const removeUploadedClothingPhoto = (index: number) => {
+    setUploadedClothingPhotos((prev) => {
+      const photo = prev[index]
+      if (photo) {
+        URL.revokeObjectURL(photo.previewUrl)
+      }
+      return prev.filter((_, photoIndex) => photoIndex !== index)
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setAlert({ type: null, message: "" })
@@ -162,7 +232,8 @@ export function SignupForm({
           favoriteColors: formData.favoriteColors,
           bio: formData.bio,
           likedProductIds,
-          shownProductIds: sampleProducts.map((p) => p.id)
+          shownProductIds: sampleProducts.map((p) => p.id),
+          uploadedClothingPhotos: uploadedClothingPhotos.map((photo) => photo.file),
         }
       )
 
@@ -279,6 +350,58 @@ export function SignupForm({
                   <Button type="submit" className="w-full">
                     Continue
                   </Button>
+                  <div className="grid gap-3 rounded-lg border border-dashed p-4">
+                    <div className="flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">Upload clothing photos (optional)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Add up to {SIGNUP_UPLOAD_LIMIT} photos of pieces you own so we can better understand your style.
+                        </p>
+                      </div>
+                    </div>
+                    <label
+                      htmlFor="signup-clothing-photos"
+                      className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-border bg-muted/30 px-4 py-6 text-center transition hover:border-primary/50"
+                    >
+                      <Upload className="mb-2 h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Choose photos</span>
+                      <span className="text-xs text-muted-foreground">
+                        JPG, PNG, HEIC up to 10MB each
+                      </span>
+                      <input
+                        id="signup-clothing-photos"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          addUploadedClothingPhotos(e.target.files)
+                          e.currentTarget.value = ""
+                        }}
+                      />
+                    </label>
+                    {uploadedClothingPhotos.length > 0 && (
+                      <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
+                        {uploadedClothingPhotos.map((photo, index) => (
+                          <div key={`${photo.file.name}-${index}`} className="group relative aspect-square overflow-hidden rounded-md border">
+                            <img
+                              src={photo.previewUrl}
+                              alt={photo.file.name}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeUploadedClothingPhoto(index)}
+                              className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </form>
             </TabsContent>
