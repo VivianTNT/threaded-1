@@ -394,7 +394,6 @@ export default function Page() {
          p.style.some(s => product.style.includes(s)) ||
          extractDomain(p.product_url) === productDomain)
         )
-      )
       .slice(0, 4)
   }
 
