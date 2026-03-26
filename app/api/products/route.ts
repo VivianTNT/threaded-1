@@ -342,6 +342,7 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const userId = searchParams.get('userId')
     const userEmail = searchParams.get('userEmail')
+    const personalized = searchParams.get('personalized') !== 'false'
 
     const userRow = await getUserRow(userId, userEmail)
     const likedIds = getStoredLikedProductIds(userRow)
@@ -352,8 +353,8 @@ export async function GET(request: Request) {
       is_liked: true,
     }))
 
-    // Personalization path (hybrid recommender API) using liked products + catalog.
-    if (userRow) {
+    // Skip the expensive personalization path when the client wants a fast initial render.
+    if (personalized && userRow) {
       const excluded = new Set<string>([...likedIds, ...shownIds])
       const topK = Math.max(limit + offset, limit)
 

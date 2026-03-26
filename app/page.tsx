@@ -26,6 +26,7 @@ export default function Page() {
   const [recommendationEngine, setRecommendationEngine] = React.useState<string>('latest_products_fallback')
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
+  const [isRefreshingRecommendations, setIsRefreshingRecommendations] = React.useState(false)
   const [pendingLikeProductId, setPendingLikeProductId] = React.useState<string | null>(null)
   const allProducts = React.useMemo(() => {
     return [...likedProducts, ...products]
@@ -34,15 +35,27 @@ export default function Page() {
     return new Set(likedProducts.map((product) => product.id))
   }, [likedProducts])
 
-  const fetchProducts = async () => {
+  const fetchProducts = async ({
+    personalized = true,
+    background = false,
+  }: {
+    personalized?: boolean
+    background?: boolean
+  } = {}) => {
     if (!user) return
 
     try {
-      setIsLoadingProducts(true)
+      if (background) {
+        setIsRefreshingRecommendations(true)
+      } else {
+        setIsLoadingProducts(true)
+      }
+
       const params = new URLSearchParams({
         limit: '50',
         userId: user.id || '',
         userEmail: user.email || '',
+        personalized: personalized ? 'true' : 'false',
       })
       const response = await fetch(`/api/products?${params.toString()}`)
       const data = await response.json()
@@ -60,13 +73,29 @@ export default function Page() {
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
-      setIsLoadingProducts(false)
+      if (background) {
+        setIsRefreshingRecommendations(false)
+      } else {
+        setIsLoadingProducts(false)
+      }
     }
   }
 
   React.useEffect(() => {
-    if (user) {
-      void fetchProducts()
+    if (!user) return
+
+    let cancelled = false
+
+    const loadProducts = async () => {
+      await fetchProducts({ personalized: false })
+      if (cancelled) return
+      await fetchProducts({ personalized: true, background: true })
+    }
+
+    void loadProducts()
+
+    return () => {
+      cancelled = true
     }
   }, [user])
 
@@ -102,7 +131,7 @@ export default function Page() {
         }
       })
 
-      await fetchProducts()
+      await fetchProducts({ personalized: true })
     } catch (error) {
       console.error('Failed to toggle like:', error)
     } finally {
@@ -186,12 +215,18 @@ export default function Page() {
                           <Badge variant={engineBadgeVariant}>
                             {engineBadgeLabel}
                           </Badge>
+                          {isRefreshingRecommendations && (
+                            <Badge variant="outline">Updating recommendations...</Badge>
+                          )}
                           <Badge variant="outline">{products.length} recommendations</Badge>
                         </>
                       ) : (
                         <>
                           <Badge variant="secondary">Latest products</Badge>
                           <Badge variant={engineBadgeVariant}>{engineBadgeLabel}</Badge>
+                          {isRefreshingRecommendations && (
+                            <Badge variant="outline">Personalizing in background...</Badge>
+                          )}
                           <Badge variant="outline">Set likes at signup for personalization</Badge>
                         </>
                       )}
