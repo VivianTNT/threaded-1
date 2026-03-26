@@ -13,6 +13,7 @@
     "backfill:two-tower": "tsx scripts/backfill-two-tower-embeddings.ts"
   },
   "dependencies": {
+    "@browserbasehq/stagehand": "^3.2.0",
     "@dnd-kit/core": "latest",
     "@dnd-kit/modifiers": "latest",
     "@dnd-kit/sortable": "latest",
@@ -101,7 +102,7 @@
     "uuid": "^13.0.0",
     "vaul": "^0.9.9",
     "xlsx": "^0.18.5",
-    "zod": "3.25.67"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",

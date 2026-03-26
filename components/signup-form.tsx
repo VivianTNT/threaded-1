@@ -68,6 +68,24 @@ export function SignupForm({
     password: "",
   })
 
+  // Optional checkout details
+  const [checkoutDetails, setCheckoutDetails] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    shippingAddress: "",
+    shippingCity: "",
+    shippingState: "",
+    shippingZip: "",
+    shippingCountry: "US",
+  })
+  const [showCheckoutFields, setShowCheckoutFields] = useState(false)
+
+  const handleCheckoutChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target
+    setCheckoutDetails(prev => ({ ...prev, [id]: value }))
+  }
+
   // Redirect if already authenticated
   useRedirectIfAuthenticated()
 
@@ -210,6 +228,7 @@ export function SignupForm({
           likedProductIds,
           shownProductIds: sampleProducts.map((p) => p.id),
           uploadedClothingPhotos: uploadedClothingPhotos.map((photo) => photo.file),
+          checkoutDetails: showCheckoutFields ? checkoutDetails : undefined,
         }
       )
 
@@ -311,6 +330,60 @@ export function SignupForm({
                     <p className="text-xs text-muted-foreground">
                       Password must be at least 8 characters long
                     </p>
+                  </div>
+                  {/* Optional: Checkout / Shipping Details */}
+                  <div className="grid gap-3 rounded-lg border border-dashed p-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowCheckoutFields(!showCheckoutFields)}
+                      className="flex items-center gap-2 text-left w-full"
+                    >
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Shipping & billing details (optional)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Add now for faster checkout — our agent will auto-fill retailer forms for you.
+                        </p>
+                      </div>
+                      <svg className={`h-4 w-4 text-muted-foreground transition-transform ${showCheckoutFields ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {showCheckoutFields && (
+                      <div className="grid gap-3 pt-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="grid gap-1">
+                            <Label htmlFor="firstName" className="text-xs">First Name</Label>
+                            <Input id="firstName" placeholder="John" value={checkoutDetails.firstName} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="lastName" className="text-xs">Last Name</Label>
+                            <Input id="lastName" placeholder="Doe" value={checkoutDetails.lastName} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                          </div>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label htmlFor="phone" className="text-xs">Phone</Label>
+                          <Input id="phone" type="tel" placeholder="(555) 123-4567" value={checkoutDetails.phone} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label htmlFor="shippingAddress" className="text-xs">Address</Label>
+                          <Input id="shippingAddress" placeholder="123 Main St, Apt 4B" value={checkoutDetails.shippingAddress} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="grid gap-1">
+                            <Label htmlFor="shippingCity" className="text-xs">City</Label>
+                            <Input id="shippingCity" placeholder="New York" value={checkoutDetails.shippingCity} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="shippingState" className="text-xs">State</Label>
+                            <Input id="shippingState" placeholder="NY" value={checkoutDetails.shippingState} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="shippingZip" className="text-xs">ZIP</Label>
+                            <Input id="shippingZip" placeholder="10001" value={checkoutDetails.shippingZip} onChange={handleCheckoutChange} className="h-9 text-sm" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <Button type="submit" className="w-full">
                     Continue

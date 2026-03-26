@@ -11,13 +11,25 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ShoppingBag, Trash2, Minus, Plus, ExternalLink, X } from 'lucide-react'
+import { ShoppingBag, Trash2, Minus, Plus, ExternalLink, X, Bot, CheckCircle2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface AgentItemStatus {
+  productId: string
+  productName: string
+  productUrl: string
+  status: 'pending' | 'running' | 'success' | 'failed'
+  stepCount?: number
+  detail?: string
+  elapsed?: number
+}
 
 export default function CartPage() {
   const { user, isLoading } = useRequireAuth()
   const { items, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
   const [isCheckingOut, setIsCheckingOut] = React.useState(false)
+  const [agentItems, setAgentItems] = React.useState<AgentItemStatus[]>([])
+  const [showAgentPanel, setShowAgentPanel] = React.useState(false)
 
   if (isLoading) {
     return (
@@ -34,11 +46,98 @@ export default function CartPage() {
   const total = getCartTotal()
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
 
+  // Run the agentic checkout for each item one-by-one
+  const runAgenticCheckout = async () => {
+    const itemsWithUrls = items.filter(item => item.product.product_url)
+    if (!itemsWithUrls.length) return
+
+    // Initialize statuses
+    const statuses: AgentItemStatus[] = itemsWithUrls.map(item => ({
+      productId: item.product.id,
+      productName: item.product.name,
+      productUrl: item.product.product_url!,
+      status: 'pending',
+    }))
+    setAgentItems(statuses)
+    setShowAgentPanel(true)
+
+    // Process each item one-by-one via the agentic API
+    for (const item of itemsWithUrls) {
+      // Mark as running
+      setAgentItems(prev =>
+        prev.map(t =>
+          t.productId === item.product.id ? { ...t, status: 'running' } : t
+        )
+      )
+      toast.info(`Agent starting: ${item.product.name}`, {
+        description: `Purchasing from ${new URL(item.product.product_url!).hostname}...`,
+      })
+
+      try {
+        const res = await fetch('/api/agentic-checkout/purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_url: item.product.product_url,
+            product_name: item.product.name,
+            selected_size: item.selectedSize || null,
+            quantity: item.quantity,
+            dry_run: false,
+            headless: false, // visible browser so user can watch
+            user_id: user?.id || null,
+          }),
+        })
+        const data = await res.json()
+
+        setAgentItems(prev =>
+          prev.map(t =>
+            t.productId === item.product.id
+              ? {
+                  ...t,
+                  status: data.success ? 'success' : 'failed',
+                  stepCount: data.steps?.length || 0,
+                  detail: data.success
+                    ? `${data.cart_status} in ${data.steps?.length || 0} steps`
+                    : data.error || 'Failed',
+                  elapsed: data.elapsed_ms,
+                }
+              : t
+          )
+        )
+
+        if (data.success) {
+          toast.success(`Agent completed: ${item.product.name}`, {
+            description: `${data.cart_status} — ${data.steps?.length} steps, ${Math.round((data.elapsed_ms || 0) / 1000)}s`,
+          })
+        } else {
+          toast.error(`Agent failed: ${item.product.name}`, {
+            description: data.error || 'Could not complete purchase',
+          })
+        }
+      } catch (err: any) {
+        setAgentItems(prev =>
+          prev.map(t =>
+            t.productId === item.product.id
+              ? { ...t, status: 'failed', detail: err.message || 'Network error' }
+              : t
+          )
+        )
+        toast.error(`Agent error: ${item.product.name}`, {
+          description: err.message || 'Request failed',
+        })
+      }
+    }
+  }
+
   const handleCheckout = async () => {
     if (!items.length || isCheckingOut) return
 
     setIsCheckingOut(true)
     try {
+      // Step 1: Run agentic checkout for each item (opens visible browser per item)
+      await runAgenticCheckout()
+
+      // Step 2: Create Stripe checkout session (payment on our side)
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
@@ -65,6 +164,7 @@ export default function CartPage() {
         throw new Error(data?.message || 'Failed to start checkout.')
       }
 
+      await new Promise(r => setTimeout(r, 2000))
       window.location.href = data.checkoutUrl
     } catch (error: any) {
       toast.error('Checkout failed', {
@@ -242,7 +342,7 @@ export default function CartPage() {
                       </div>
 
                       {/* Order Summary */}
-                      <div className="lg:col-span-1">
+                      <div className="lg:col-span-1 space-y-4">
                         <Card className="p-6 sticky top-4">
                           <h3 className="font-semibold mb-4">Order Summary</h3>
 
@@ -266,17 +366,99 @@ export default function CartPage() {
 
                           <div className="space-y-3">
                             <Button className="w-full" size="lg" onClick={handleCheckout} disabled={isCheckingOut}>
-                              {isCheckingOut ? 'Redirecting...' : 'Proceed to Checkout'}
+                              {isCheckingOut ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <Bot className="h-4 w-4 mr-2" />
+                                  Checkout & Purchase Items
+                                </>
+                              )}
                             </Button>
                             <Button variant="outline" className="w-full" asChild>
                               <a href="/">Continue Shopping</a>
                             </Button>
                           </div>
 
-                          <p className="text-xs text-muted-foreground text-center mt-4">
-                            Secure checkout powered by Stripe.
+                          <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground text-center justify-center">
+                            <Bot className="h-3 w-3" />
+                            <span>Agent opens each item on its retailer site</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center mt-1">
+                            Secure payment powered by Stripe
                           </p>
                         </Card>
+
+                        {/* Agent Status Panel */}
+                        {showAgentPanel && agentItems.length > 0 && (
+                          <Card className="p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Bot className="h-4 w-4 text-primary" />
+                              <h4 className="font-semibold text-sm">Agent Purchase Status</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {agentItems.map((item) => (
+                                <div
+                                  key={item.productId}
+                                  className={`flex items-center gap-2 p-2 rounded-md text-xs border ${
+                                    item.status === 'success'
+                                      ? 'bg-green-50 border-green-200 text-green-700'
+                                      : item.status === 'running'
+                                      ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                      : item.status === 'failed'
+                                      ? 'bg-red-50 border-red-200 text-red-700'
+                                      : 'bg-muted/50 border-border text-muted-foreground'
+                                  }`}
+                                >
+                                  {item.status === 'success' ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                                  ) : item.status === 'running' ? (
+                                    <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+                                  ) : item.status === 'failed' ? (
+                                    <X className="h-3.5 w-3.5 flex-shrink-0" />
+                                  ) : (
+                                    <Bot className="h-3.5 w-3.5 flex-shrink-0" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{item.productName}</div>
+                                    <div className="text-[10px] opacity-70 truncate">
+                                      {new URL(item.productUrl).hostname}
+                                      {item.elapsed ? ` · ${Math.round(item.elapsed / 1000)}s` : ''}
+                                      {item.stepCount ? ` · ${item.stepCount} steps` : ''}
+                                    </div>
+                                    {item.detail && (
+                                      <div className="text-[10px] opacity-60 truncate mt-0.5">{item.detail}</div>
+                                    )}
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] flex-shrink-0 ${
+                                      item.status === 'success'
+                                        ? 'bg-green-100 text-green-700 border-green-300'
+                                        : item.status === 'failed'
+                                        ? 'bg-red-100 text-red-700 border-red-300'
+                                        : ''
+                                    }`}
+                                  >
+                                    {item.status === 'success'
+                                      ? 'Purchased'
+                                      : item.status === 'running'
+                                      ? 'Agent working...'
+                                      : item.status === 'failed'
+                                      ? 'Failed'
+                                      : 'Queued'}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-2">
+                              The AI agent opens a browser and purchases each item from the retailer site automatically.
+                            </p>
+                          </Card>
+                        )}
                       </div>
                     </div>
                   )}

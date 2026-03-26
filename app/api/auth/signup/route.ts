@@ -197,6 +197,11 @@ export async function POST(request: Request) {
       [likedProductsEmbedding, uploadedImageEmbeddingAvg].filter((vec): vec is number[] => Array.isArray(vec) && vec.length > 0)
     )
 
+    // Extract checkout details if provided
+    const checkoutDetails = userData?.checkoutDetails || {}
+    const firstName = typeof checkoutDetails.firstName === 'string' ? checkoutDetails.firstName.trim() : null
+    const lastName = typeof checkoutDetails.lastName === 'string' ? checkoutDetails.lastName.trim() : null
+
     const baseInsertPayload: any = {
       id: authData.user.id, // Use Auth user ID as primary key
       handle: userData.name,
@@ -211,7 +216,16 @@ export async function POST(request: Request) {
         uploaded_image_embedding_avg: uploadedImageEmbeddingAvg,
       },
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Checkout / shipping details (optional, for agentic checkout auto-fill)
+      ...(firstName ? { first_name: firstName } : {}),
+      ...(lastName ? { last_name: lastName } : {}),
+      ...(checkoutDetails.phone ? { phone: checkoutDetails.phone.trim() } : {}),
+      ...(checkoutDetails.shippingAddress ? { shipping_address: checkoutDetails.shippingAddress.trim() } : {}),
+      ...(checkoutDetails.shippingCity ? { shipping_city: checkoutDetails.shippingCity.trim() } : {}),
+      ...(checkoutDetails.shippingState ? { shipping_state: checkoutDetails.shippingState.trim() } : {}),
+      ...(checkoutDetails.shippingZip ? { shipping_zip: checkoutDetails.shippingZip.trim() } : {}),
+      ...(checkoutDetails.shippingCountry ? { shipping_country: checkoutDetails.shippingCountry.trim() } : {}),
     }
 
     if (userImageEmbeddingAvg && userImageEmbeddingAvg.length > 0) {
