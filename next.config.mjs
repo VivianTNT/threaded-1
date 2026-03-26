@@ -12,7 +12,7 @@ const nextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      config.externals = [...(config.externals || []), 'canvas', 'pdf-parse']
+      config.externals = [...(config.externals || []), 'canvas', 'pdf-parse', '@browserbasehq/stagehand', 'playwright', 'playwright-core']
     }
     // Prevent canvas errors for react-pdf-viewer
     config.resolve.alias = {

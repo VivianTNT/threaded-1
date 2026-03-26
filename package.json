@@ -13,7 +13,6 @@
     "backfill:two-tower": "tsx scripts/backfill-two-tower-embeddings.ts"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^3.2.0",
     "@dnd-kit/core": "latest",
     "@dnd-kit/modifiers": "latest",
     "@dnd-kit/sortable": "latest",
@@ -105,6 +104,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@browserbasehq/stagehand": "^3.2.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22.18.8",
     "@types/node-fetch": "^2.6.13",
