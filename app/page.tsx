@@ -325,7 +325,19 @@ export default function Page() {
         return
       }
 
-      void fetchProducts({ showLoading: true, strategy: 'hybrid' })
+      let cancelled = false
+
+      const loadInitialRecommendations = async () => {
+        await fetchProducts({ showLoading: true, strategy: 'content' })
+        if (cancelled) return
+        await fetchProducts({ showLoading: false, strategy: 'hybrid' })
+      }
+
+      void loadInitialRecommendations()
+
+      return () => {
+        cancelled = true
+      }
     }
   }, [user, applyProductsResponse, fetchProducts])
 
@@ -584,6 +596,9 @@ export default function Page() {
                         <>
                           <Badge variant="secondary">{selectedModelLabel}</Badge>
                           <Badge variant={engineBadgeVariant}>{engineBadgeLabel}</Badge>
+                          {isRefreshingRecommendations && recommendationMode === 'personalized_image' && (
+                            <Badge variant="outline">Upgrading to hybrid...</Badge>
+                          )}
                           <Badge variant="outline">{products.length} recommendations</Badge>
                         </>
                       ) : (

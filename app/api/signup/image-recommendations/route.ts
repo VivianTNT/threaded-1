@@ -23,7 +23,7 @@ const SIGNUP_SAMPLE_SIZE = DEFAULT_SIGNUP_SAMPLE_SIZE
 const SIGNUP_MIN_LIKES = DEFAULT_SIGNUP_MIN_LIKES
 const SIGNUP_TOP_K = DEFAULT_SIGNUP_TOP_K
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
-const SIGNUP_HYBRID_CATALOG_LIMIT = 1000
+const SIGNUP_HYBRID_CATALOG_LIMIT = 3000
 const SUPABASE_SELECT_PAGE_SIZE = 500
 const SUPABASE_IN_FILTER_BATCH_SIZE = 200
 
@@ -100,16 +100,20 @@ async function loadProductsByIds(ids: string[]): Promise<ProductRow[]> {
 async function loadLatestProductsForHybrid(limit: number): Promise<ProductRow[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('id,name,domain,image_url,price,product_url,category,description')
+    .select('id')
     .not('image_url', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(limit)
 
   if (error) {
-    throw new Error(`Failed to load hybrid signup catalog: ${error.message}`)
+    throw new Error(`Failed to load hybrid signup catalog ids: ${error.message}`)
   }
 
-  return (data || []) as ProductRow[]
+  const allIds = ((data as Array<{ id: string }> | null) || []).map((row) => String(row.id))
+  if (allIds.length <= limit) {
+    return loadProductsByIds(allIds)
+  }
+
+  shuffleInPlace(allIds)
+  return loadProductsByIds(allIds.slice(0, limit))
 }
 
 async function scoreProductsWithHybridCatalogApi(

@@ -72,13 +72,13 @@ type PersonalizedRecommendationResult = {
 }
 
 const DEFAULT_RECSYS_BASE_URL = 'http://127.0.0.1:8000'
-const HYBRID_CATALOG_LIMIT = 1000
+const HYBRID_CATALOG_LIMIT = 3000
 const HYBRID_API_TIMEOUT_MS = parseInt(process.env.RECSYS_TIMEOUT_MS || '60000', 10)
 const SUPABASE_SELECT_PAGE_SIZE = 500
 const SUPABASE_IN_FILTER_BATCH_SIZE = 200
 const DEFAULT_RECOMMENDATION_SNAPSHOT_TTL_MINUTES = 30
 const DEFAULT_RECOMMENDATION_SNAPSHOT_LIMIT = 200
-const RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION = 2
+const RECOMMENDATION_SNAPSHOT_SCHEMA_VERSION = 3
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
@@ -86,6 +86,15 @@ function chunkArray<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(index, index + size))
   }
   return chunks
+}
+
+function shuffleInPlace<T>(items: T[]): void {
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    const current = items[index]
+    items[index] = items[swapIndex]
+    items[swapIndex] = current
+  }
 }
 
 function getRecsysBaseUrl(): string {
@@ -333,14 +342,19 @@ async function getLatestProducts(limit: number, offset: number): Promise<{ produ
 async function getCatalogProductsForHybrid(limit: number): Promise<PennProduct[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit)
+    .select('id')
 
   if (error) {
-    throw new Error(`Failed to fetch hybrid catalog products: ${error.message}`)
+    throw new Error(`Failed to fetch hybrid catalog product ids: ${error.message}`)
   }
-  return (data as PennProduct[]) || []
+
+  const allIds = ((data as Array<{ id: string }> | null) || []).map((row) => String(row.id))
+  if (allIds.length <= limit) {
+    return getProductsByIds(allIds)
+  }
+
+  shuffleInPlace(allIds)
+  return getProductsByIds(allIds.slice(0, limit))
 }
 
 function toRecommendationScore(score: number): number {
