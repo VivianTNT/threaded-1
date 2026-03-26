@@ -8,10 +8,12 @@ import { useRequireAuth } from '@/lib/auth-utils'
 import { FashionGrid } from '@/components/fashion-recommendations/fashion-grid'
 import { ProductDetailPanel } from '@/components/fashion-recommendations/product-detail-panel'
 import { FashionProduct } from '@/lib/types/fashion-product'
-import { Sparkles, Filter, Search } from 'lucide-react'
+import { Sparkles, Filter, RefreshCw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 import {
   SidebarInset,
@@ -382,13 +384,16 @@ export default function Page() {
     return null // Will redirect to login
   }
 
-  // Recommend based on domain/brand and gender instead of null categories
+  // Get similar products based on category and style
   const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
     const productDomain = extractDomain(product.product_url);
     return allProducts
       .filter(p =>
         p.id !== product.id &&
-        (p.gender === product.gender || extractDomain(p.product_url) === productDomain)
+        (p.category === product.category ||
+         p.style.some(s => product.style.includes(s)) ||
+         extractDomain(p.product_url) === productDomain)
+        )
       )
       .slice(0, 4)
   }
@@ -587,26 +592,27 @@ export default function Page() {
 
                   {/* Product Grid Area */}
                   <div className="flex-1 w-full">
-                    {isLoadingProducts ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="text-muted-foreground">Loading products...</div>
-                      </div>
-                    ) : filteredProducts.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 border border-dashed rounded-lg bg-muted/30">
-                        <div className="text-muted-foreground mb-2">No products match your filters</div>
-                        <Button variant="link" onClick={clearFilters}>
-                          Clear all filters
-                        </Button>
-                      </div>
-                    ) : (
-                      <FashionGrid
-                        products={filteredProducts}
-                        onProductClick={setSelectedProduct}
-                        likedItems={likedItemIds}
-                        onToggleLike={handleToggleLike}
-                        pendingLikeProductId={pendingLikeProductId}
-                      />
-                    )}
+                  {isLoadingProducts ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-muted-foreground">Loading products...</div>
+                    </div>
+                  ) : filteredProducts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="text-muted-foreground mb-2">No products found</div>
+                      <p className="text-sm text-muted-foreground">Check back soon for new recommendations</p>
+                      <Button variant="link" onClick={clearFilters}>
+                        Clear all filters
+                      </Button>
+                    </div>
+                  ) : (
+                    <FashionGrid
+                      products={filteredProducts}
+                      onProductClick={setSelectedProduct}
+                      likedItems={likedItemIds}
+                      onToggleLike={handleToggleLike}
+                      pendingLikeProductId={pendingLikeProductId}
+                    />
+                  )}
                   </div>
 
                 </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,16 +16,15 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth-context"
 import { useRedirectIfAuthenticated } from "@/lib/auth-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, AlertCircle, Info } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
+import { CheckCircle, AlertCircle, Info, Upload, Camera, X } from "lucide-react"
 
 const SIGNUP_SAMPLE_SIZE = 16
 const SIGNUP_MIN_LIKES = 3
+const SIGNUP_UPLOAD_LIMIT = 5
+const SIGNUP_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 
 type OnboardingProductCard = {
   id: string
@@ -37,6 +36,11 @@ type OnboardingProductCard = {
   category: string | null
   description: string | null
   similarity?: number
+}
+
+type UploadedClothingPhoto = {
+  file: File
+  previewUrl: string
 }
 
 export function SignupForm({
@@ -54,16 +58,14 @@ export function SignupForm({
   const [sampleProducts, setSampleProducts] = useState<OnboardingProductCard[]>([])
   const [likedProductIds, setLikedProductIds] = useState<string[]>([])
   const [isLoadingSample, setIsLoadingSample] = useState(false)
+  const [uploadedClothingPhotos, setUploadedClothingPhotos] = useState<UploadedClothingPhoto[]>([])
+  const uploadedClothingPhotosRef = useRef<UploadedClothingPhoto[]>([])
 
   // Form data state
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    stylePreferences: [] as string[],
-    budgetRange: "",
-    favoriteColors: "",
-    bio: ""
   })
 
   // Redirect if already authenticated
@@ -74,22 +76,19 @@ export function SignupForm({
     void loadSignupSample()
   }, [step, sampleProducts.length])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  useEffect(() => {
+    uploadedClothingPhotosRef.current = uploadedClothingPhotos
+  }, [uploadedClothingPhotos])
+
+  useEffect(() => {
+    return () => {
+      uploadedClothingPhotosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+    }
+  }, [])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
     setFormData(prev => ({ ...prev, [id]: value }))
-  }
-
-  const handleSelectChange = (value: string) => {
-    setFormData(prev => ({ ...prev, budgetRange: value }))
-  }
-
-  const toggleStylePreference = (style: string) => {
-    setFormData(prev => ({
-      ...prev,
-      stylePreferences: prev.stylePreferences.includes(style)
-        ? prev.stylePreferences.filter(s => s !== style)
-        : [...prev.stylePreferences, style]
-    }))
   }
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -145,6 +144,57 @@ export function SignupForm({
     })
   }
 
+  const addUploadedClothingPhotos = (files: FileList | null) => {
+    if (!files) return
+
+    const remainingSlots = SIGNUP_UPLOAD_LIMIT - uploadedClothingPhotos.length
+    if (remainingSlots <= 0) {
+      setAlert({
+        type: "info",
+        message: `You can upload up to ${SIGNUP_UPLOAD_LIMIT} clothing photos.`
+      })
+      return
+    }
+
+    const nextPhotos: UploadedClothingPhoto[] = []
+    for (const file of Array.from(files).slice(0, remainingSlots)) {
+      if (!file.type.startsWith("image/")) {
+        setAlert({
+          type: "error",
+          message: `${file.name} is not a supported image file.`
+        })
+        continue
+      }
+
+      if (file.size > SIGNUP_UPLOAD_MAX_BYTES) {
+        setAlert({
+          type: "error",
+          message: `${file.name} is larger than 10MB.`
+        })
+        continue
+      }
+
+      nextPhotos.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
+    }
+
+    if (nextPhotos.length > 0) {
+      setUploadedClothingPhotos((prev) => [...prev, ...nextPhotos])
+    }
+  }
+
+  const removeUploadedClothingPhoto = (index: number) => {
+    setUploadedClothingPhotos((prev) => {
+      const photo = prev[index]
+      if (photo) {
+        URL.revokeObjectURL(photo.previewUrl)
+      }
+      return prev.filter((_, photoIndex) => photoIndex !== index)
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setAlert({ type: null, message: "" })
@@ -157,12 +207,9 @@ export function SignupForm({
         formData.password,
         {
           name: formData.name,
-          stylePreferences: formData.stylePreferences,
-          budgetRange: formData.budgetRange,
-          favoriteColors: formData.favoriteColors,
-          bio: formData.bio,
           likedProductIds,
-          shownProductIds: sampleProducts.map((p) => p.id)
+          shownProductIds: sampleProducts.map((p) => p.id),
+          uploadedClothingPhotos: uploadedClothingPhotos.map((photo) => photo.file),
         }
       )
 
@@ -202,17 +249,6 @@ export function SignupForm({
     }
   }
 
-  const styleOptions = [
-    "Minimalist",
-    "Classic",
-    "Casual",
-    "Business Casual",
-    "Athleisure",
-    "Bohemian",
-    "Streetwear",
-    "Elegant"
-  ]
-
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -237,7 +273,7 @@ export function SignupForm({
           <Tabs value={step} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="account" disabled={step === "preferences"}>Account</TabsTrigger>
-              <TabsTrigger value="preferences" disabled={step === "account"}>Style Preferences</TabsTrigger>
+              <TabsTrigger value="preferences" disabled={step === "account"}>Pick Products</TabsTrigger>
             </TabsList>
             <TabsContent value="account">
               <form onSubmit={handleNextStep}>
@@ -279,6 +315,58 @@ export function SignupForm({
                   <Button type="submit" className="w-full">
                     Continue
                   </Button>
+                  <div className="grid gap-3 rounded-lg border border-dashed p-4">
+                    <div className="flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">Upload clothing photos (optional)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Add up to {SIGNUP_UPLOAD_LIMIT} photos of pieces you own so we can better understand your style.
+                        </p>
+                      </div>
+                    </div>
+                    <label
+                      htmlFor="signup-clothing-photos"
+                      className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-border bg-muted/30 px-4 py-6 text-center transition hover:border-primary/50"
+                    >
+                      <Upload className="mb-2 h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Choose photos</span>
+                      <span className="text-xs text-muted-foreground">
+                        JPG, PNG, HEIC up to 10MB each
+                      </span>
+                      <input
+                        id="signup-clothing-photos"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          addUploadedClothingPhotos(e.target.files)
+                          e.currentTarget.value = ""
+                        }}
+                      />
+                    </label>
+                    {uploadedClothingPhotos.length > 0 && (
+                      <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
+                        {uploadedClothingPhotos.map((photo, index) => (
+                          <div key={`${photo.file.name}-${index}`} className="group relative aspect-square overflow-hidden rounded-md border">
+                            <img
+                              src={photo.previewUrl}
+                              alt={photo.file.name}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeUploadedClothingPhoto(index)}
+                              className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </form>
             </TabsContent>
@@ -354,61 +442,6 @@ export function SignupForm({
                         <p className="text-xs text-muted-foreground">Great, you are ready to continue</p>
                       )}
                     </div>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label>Style Preferences (select all that apply)</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {styleOptions.map((style) => (
-                        <div key={style} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={style}
-                            checked={formData.stylePreferences.includes(style)}
-                            onCheckedChange={() => toggleStylePreference(style)}
-                          />
-                          <label
-                            htmlFor={style}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {style}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="budgetRange">Budget Range (optional)</Label>
-                    <Select value={formData.budgetRange} onValueChange={handleSelectChange}>
-                      <SelectTrigger id="budgetRange">
-                        <SelectValue placeholder="Select budget range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="budget">Budget Friendly ($0-$50)</SelectItem>
-                        <SelectItem value="midrange">Mid-Range ($50-$200)</SelectItem>
-                        <SelectItem value="premium">Premium ($200-$500)</SelectItem>
-                        <SelectItem value="luxury">Luxury ($500+)</SelectItem>
-                        <SelectItem value="mixed">Mixed Range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="favoriteColors">Favorite Colors (optional)</Label>
-                    <Input
-                      id="favoriteColors"
-                      placeholder="e.g., Black, Navy, Beige, Emerald"
-                      value={formData.favoriteColors}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="bio">About You (optional)</Label>
-                    <Textarea
-                      id="bio"
-                      placeholder="Tell us about your style goals, what occasions you dress for, or anything that helps us understand your fashion needs..."
-                      className="min-h-24"
-                      value={formData.bio}
-                      onChange={handleChange}
-                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Button

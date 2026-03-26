@@ -62,15 +62,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, userData: any) => {
     try {
       setIsLoading(true);
-      
-      // Call the signup API route
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, userData }),
-      });
+
+      const uploadedClothingPhotos: File[] = Array.isArray(userData?.uploadedClothingPhotos)
+        ? userData.uploadedClothingPhotos
+        : [];
+
+      let response: Response;
+      if (uploadedClothingPhotos.length > 0) {
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        formData.append('userData', JSON.stringify({
+          ...userData,
+          uploadedClothingPhotos: undefined,
+        }));
+
+        uploadedClothingPhotos.forEach((file) => {
+          formData.append('uploadedClothingPhotos', file);
+        });
+
+        response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password, userData }),
+        });
+      }
       
       const data = await response.json();
       

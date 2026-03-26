@@ -1,7 +1,9 @@
+import { formatDomainAsBrand } from '@/lib/penn-products'
+
 export type ProductRow = {
   id: string
   name: string | null
-  brand_name: string | null
+  domain: string | null
   image_url: string | null
   price: number | null
   product_url: string | null
@@ -115,7 +117,7 @@ export function toProductCard(row: ProductRow): ProductCard {
   return {
     id: row.id,
     name: row.name || 'Fashion Item',
-    brand: row.brand_name || 'Unknown Brand',
+    brand: formatDomainAsBrand(row.domain),
     image_url: row.image_url || '',
     price: row.price ?? null,
     product_url: row.product_url ?? null,
