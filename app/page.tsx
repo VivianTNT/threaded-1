@@ -115,7 +115,7 @@ export default function Page() {
   const [activeFilters, setActiveFilters] = React.useState({
     searchQuery: '',
     brands: [] as string[],
-    minPrice: 0,
+    genders: [] as string[],
     maxPrice: 5000,
   })
 
@@ -132,16 +132,22 @@ export default function Page() {
     const domains = products.map(p => extractDomain(p.product_url)).filter(d => d !== 'Unknown')
     return Array.from(new Set(domains)).sort()
   }, [products])
+  
+  const availableGenders = React.useMemo(() => {
+    const genders = products.map(p => p.gender).filter(Boolean) as string[]
+    return Array.from(new Set(genders)).sort()
+  }, [products])
 
   const absoluteMaxPrice = React.useMemo(() => {
     const max = Math.max(...products.map(p => p.price || 0), 100)
+    // Round up to nearest 10 for cleaner slider
     return Math.ceil(max / 10) * 10
   }, [products])
 
   // --- FILTER LOGIC ---
   const filteredProducts = React.useMemo(() => {
     return products.filter((product) => {
-      // 1. Search Query
+      // Search Query (Acts as a pseudo-category filter)
       if (activeFilters.searchQuery) {
         const query = activeFilters.searchQuery.toLowerCase()
         const matchName = (product.name || '').toLowerCase().includes(query)
@@ -155,8 +161,12 @@ export default function Page() {
         if (!activeFilters.brands.includes(productBrand)) return false
       }
 
-      // Price Bounds
-      if (product.price < activeFilters.minPrice) return false
+      // Gender
+      if (activeFilters.genders.length > 0) {
+        if (!product.gender || !activeFilters.genders.includes(product.gender)) return false
+      }
+
+      // Price
       if (product.price > activeFilters.maxPrice) return false
       
       return true
@@ -170,20 +180,23 @@ export default function Page() {
     }
   }, [products, absoluteMaxPrice, activeFilters.maxPrice])
 
-  const toggleBrand = (brand: string) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      brands: prev.brands.includes(brand) 
-        ? prev.brands.filter(b => b !== brand)
-        : [...prev.brands, brand]
-    }))
+  const toggleFilterArray = (key: 'brands' | 'genders', value: string) => {
+    setActiveFilters(prev => {
+      const currentArr = prev[key]
+      return {
+        ...prev,
+        [key]: currentArr.includes(value) 
+          ? currentArr.filter(v => v !== value)
+          : [...currentArr, value]
+      }
+    })
   }
 
   const clearFilters = () => {
     setActiveFilters({
       searchQuery: '',
       brands: [],
-      minPrice: 0,
+      genders: [],
       maxPrice: absoluteMaxPrice,
     })
   }
@@ -369,11 +382,13 @@ export default function Page() {
     return null // Will redirect to login
   }
 
+  // Recommend based on domain/brand and gender instead of null categories
   const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
     const productDomain = extractDomain(product.product_url);
     return allProducts
       .filter(p =>
-        p.id !== product.id && extractDomain(p.product_url) === productDomain
+        p.id !== product.id &&
+        (p.gender === product.gender || extractDomain(p.product_url) === productDomain)
       )
       .slice(0, 4)
   }
@@ -510,37 +525,43 @@ export default function Page() {
                         </div>
                       </div>
 
-                      {/* Min/Max Price Inputs */}
+                      {/* Price Range Slider */}
                       <div className="space-y-3">
-                        <h4 className="text-sm font-semibold">Price Range</h4>
-                        <div className="flex items-center space-x-2">
-                          <div className="flex flex-col w-full">
-                            <span className="text-xs text-muted-foreground mb-1">Min ($)</span>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={activeFilters.maxPrice}
-                              value={activeFilters.minPrice || ''}
-                              onChange={(e) => setActiveFilters(prev => ({ ...prev, minPrice: parseInt(e.target.value) || 0 }))}
-                              className="h-8 text-sm px-2"
-                              placeholder="0"
-                            />
-                          </div>
-                          <span className="text-muted-foreground mt-4">-</span>
-                          <div className="flex flex-col w-full">
-                            <span className="text-xs text-muted-foreground mb-1">Max ($)</span>
-                            <Input
-                              type="number"
-                              min={activeFilters.minPrice}
-                              max={absoluteMaxPrice}
-                              value={activeFilters.maxPrice || ''}
-                              onChange={(e) => setActiveFilters(prev => ({ ...prev, maxPrice: parseInt(e.target.value) || 0 }))}
-                              className="h-8 text-sm px-2"
-                              placeholder={absoluteMaxPrice.toString()}
-                            />
+                        <h4 className="text-sm font-semibold">Max Price</h4>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>$0</span>
+                          <span>${activeFilters.maxPrice}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={absoluteMaxPrice}
+                          step={10}
+                          value={activeFilters.maxPrice}
+                          onChange={(e) => setActiveFilters(prev => ({ ...prev, maxPrice: parseInt(e.target.value) }))}
+                          className="w-full accent-primary"
+                        />
+                      </div>
+
+                      {/* Genders */}
+                      {availableGenders.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold">Gender</h4>
+                          <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                            {availableGenders.map(gender => (
+                              <label key={gender} className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={activeFilters.genders.includes(gender)}
+                                  onChange={() => toggleFilterArray('genders', gender)}
+                                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm text-muted-foreground capitalize">{gender}</span>
+                              </label>
+                            ))}
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Brands (Derived from Domain) */}
                       {availableBrands.length > 0 && (
@@ -552,7 +573,7 @@ export default function Page() {
                                 <input
                                   type="checkbox"
                                   checked={activeFilters.brands.includes(brand)}
-                                  onChange={() => toggleBrand(brand)}
+                                  onChange={() => toggleFilterArray('brands', brand)}
                                   className="rounded border-gray-300 text-primary focus:ring-primary"
                                 />
                                 <span className="text-sm text-muted-foreground">{brand}</span>
