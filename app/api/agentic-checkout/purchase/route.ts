@@ -202,55 +202,72 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
       await page.waitForTimeout(500)
     }
 
-    // ── Add to bag ─────────────────────────────────────────────────────
-    try {
-      await stagehand.act('click the "Add to bag" or "Add to Cart" button')
-      log.add('add_to_bag', 'Clicked Add to Bag', 'success')
-    } catch (e: any) {
-      log.add('add_to_bag', 'Failed to click Add to Bag', 'failed', e.message)
-      return { success: false, product_url: req.product_url, steps: log.steps, cart_status: 'failed', error: 'Could not add to bag', elapsed_ms: Date.now() - startTime }
+    // ── Helper: check if a button/text is still visible on the page ────
+    async function pageStillShows(text: string): Promise<boolean> {
+      return page.evaluate((t: string) =>
+        document.body.innerText.toLowerCase().includes(t.toLowerCase())
+      , text).catch(() => false)
     }
-    await page.waitForTimeout(2000)
 
-    // ── Check for "please select a size" error — if so, select size and retry ──
-    {
-      const needsSize = await page.evaluate(() =>
-        document.body.innerText.toLowerCase().includes('please select a size') ||
-        document.body.innerText.toLowerCase().includes('select a size')
-      ).catch(() => false)
+    // ── Add to bag (with retry loop) ─────────────────────────────────
+    for (let attempt = 0; attempt < 3; attempt++) {
+      // Check if size needs selecting
+      const needsSize = await pageStillShows('please select a size')
       if (needsSize) {
-        log.add('size_retry', 'Page says "please select a size" — retrying size selection', 'failed')
+        log.add('size_retry', 'Page says "please select a size" — selecting one', 'failed')
         try { await stagehand.act('click the "XL" size button') } catch {
           try { await stagehand.act('click the "L" size button') } catch {
-            try { await stagehand.act('click the "M" size button') } catch {
-              try { await stagehand.act('click the "8" size button') } catch {}
-            }
+            try { await stagehand.act('click the "M" size button') } catch {}
           }
         }
         await page.waitForTimeout(500)
-        // Retry add to bag
-        try {
-          await stagehand.act('click the "Add to bag" or "Add to Cart" button')
-          log.add('add_to_bag_retry', 'Added to bag after size selection', 'success')
-        } catch {}
-        await page.waitForTimeout(2000)
       }
+
+      // Click add to bag
+      try {
+        await stagehand.act('click the "Add to bag" or "Add to Cart" button')
+        log.add('add_to_bag', 'Clicked Add to Bag', 'success')
+      } catch (e: any) {
+        if (attempt === 2) {
+          log.add('add_to_bag', 'Failed to click Add to Bag', 'failed', e.message)
+          return { success: false, product_url: req.product_url, steps: log.steps, cart_status: 'failed', error: 'Could not add to bag', elapsed_ms: Date.now() - startTime }
+        }
+      }
+      await page.waitForTimeout(2000)
+
+      // Verify: if "Add to bag" button is gone or "Go to bag" appeared, we're good
+      const stillShowsAdd = await pageStillShows('add to bag')
+      const showsGoToBag = await pageStillShows('go to bag')
+      if (showsGoToBag || !stillShowsAdd) break
+      log.add('add_to_bag_verify', `Add to bag still visible — retrying (attempt ${attempt + 2})`, 'failed')
     }
 
-    // ── A popup appears — click "Go to bag" inside it ────────────────
-    try {
-      await stagehand.act('click the "Go to bag" button in the popup')
-      log.add('go_to_bag', 'Clicked Go to bag', 'success')
-    } catch {
+    // ── Click "Go to bag" in the popup (with retry) ──────────────────
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const showsGoToBag = await pageStillShows('go to bag')
+      if (!showsGoToBag && attempt > 0) break // Already navigated away
+
       try {
-        const currentUrl = new URL(page.url())
-        await page.goto(`${currentUrl.origin}/cart`, { waitUntil: 'domcontentloaded' })
-        log.add('go_to_bag', 'Navigated to /cart directly', 'success')
+        await stagehand.act('click the "Go to bag" button in the popup')
+        log.add('go_to_bag', 'Clicked Go to bag', 'success')
       } catch {
-        log.add('go_to_bag', 'Could not get to bag', 'failed')
+        if (attempt === 0) {
+          try {
+            const currentUrl = new URL(page.url())
+            await page.goto(`${currentUrl.origin}/cart`, { waitUntil: 'domcontentloaded' })
+            log.add('go_to_bag', 'Navigated to /cart directly', 'success')
+          } catch {
+            log.add('go_to_bag', 'Could not get to bag', 'failed')
+          }
+        }
       }
+      await page.waitForTimeout(2000)
+
+      // Verify: "Go to bag" should be gone now
+      const stillShowsGoToBag = await pageStillShows('go to bag')
+      if (!stillShowsGoToBag) break
+      log.add('go_to_bag_verify', `Go to bag still visible — retrying (attempt ${attempt + 2})`, 'failed')
     }
-    await page.waitForTimeout(2000)
 
     // ── Dry run stop ─────────────────────────────────────────────────────
     if (req.dry_run) {
@@ -258,56 +275,75 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
       return { success: true, product_url: req.product_url, steps: log.steps, cart_status: 'dry_run_stopped', elapsed_ms: Date.now() - startTime }
     }
 
-    // ── Click "Proceed to Secure Checkout" on the bag page ─────────────
+    // ── Click "Proceed to Secure Checkout" (with retry) ──────────────
     try { await stagehand.act('close any popup or overlay blocking the page') } catch {}
     await page.waitForTimeout(500)
 
-    try {
-      await stagehand.act('click "Proceed to Secure Checkout", "Secure Checkout", "Checkout", or "Proceed to Checkout" button (NOT PayPal, NOT Google Pay, NOT "Continue Shopping")')
-      log.add('checkout', 'Clicked Proceed to Secure Checkout', 'success')
-    } catch {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const currentUrl = new URL(page.url())
-        await page.goto(`${currentUrl.origin}/checkout`, { waitUntil: 'domcontentloaded' })
-        log.add('checkout', 'Navigated to /checkout directly', 'success')
-      } catch (e2: any) {
-        log.add('checkout', 'Could not click checkout', 'failed', e2.message)
-        return { success: false, product_url: req.product_url, steps: log.steps, cart_status: 'item_added', error: 'Could not reach checkout', elapsed_ms: Date.now() - startTime }
+        await stagehand.act('click "Proceed to Secure Checkout", "Secure Checkout", "Checkout", or "Proceed to Checkout" button (NOT PayPal, NOT Google Pay, NOT "Continue Shopping")')
+        log.add('checkout', 'Clicked Proceed to Secure Checkout', 'success')
+      } catch {
+        if (attempt === 0) {
+          try {
+            const currentUrl = new URL(page.url())
+            await page.goto(`${currentUrl.origin}/checkout`, { waitUntil: 'domcontentloaded' })
+            log.add('checkout', 'Navigated to /checkout directly', 'success')
+          } catch (e2: any) {
+            log.add('checkout', 'Could not click checkout', 'failed', e2.message)
+            return { success: false, product_url: req.product_url, steps: log.steps, cart_status: 'item_added', error: 'Could not reach checkout', elapsed_ms: Date.now() - startTime }
+          }
+        }
       }
-    }
-    await page.waitForTimeout(3000)
+      await page.waitForTimeout(3000)
 
-    // ── Guest checkout gate ──
-    // Flow: "Continue as Guest" → enter email → "Continue as Guest" again → shipping form
+      // Verify: checkout/proceed button should be gone
+      const stillShowsCheckout = await pageStillShows('proceed to secure checkout')
+      if (!stillShowsCheckout) break
+      log.add('checkout_verify', `Checkout button still visible — retrying (attempt ${attempt + 2})`, 'failed')
+    }
+
+    // ── Guest checkout gate (handle any order of email + continue as guest) ──
     const d = req.userDetails
 
-    // Step A: First "Continue as Guest" button (before email)
-    try {
-      await stagehand.act('click "Continue as Guest", "Guest Checkout", or "Checkout as Guest" button (do NOT log in, do NOT create an account)')
-      log.add('guest_step1', 'Clicked Continue as Guest (step 1)', 'success')
-      await page.waitForTimeout(2000)
-    } catch {
-      log.add('guest_step1', 'No initial guest prompt', 'skipped')
-    }
-
-    // Step B: Enter email address
-    if (d?.email) {
-      try {
-        await stagehand.act(`type "${d.email}" into the email address field`)
-        log.add('gate_email', 'Entered email', 'success', d.email)
-        await page.waitForTimeout(1000)
-      } catch {
-        log.add('gate_email', 'No email gate field', 'skipped')
+    // Try up to 3 rounds to get past the guest gate
+    for (let gateAttempt = 0; gateAttempt < 3; gateAttempt++) {
+      const pageText = await page.evaluate(() => document.body.innerText.substring(0, 3000).toLowerCase()).catch(() => '')
+      
+      // If we see shipping form fields (first name, last name, address), we're through
+      if (pageText.includes('first name') && pageText.includes('last name')) {
+        log.add('guest_gate', 'Reached shipping form', 'success')
+        break
       }
-    }
 
-    // Step C: Second "Continue as Guest" button (after email)
-    try {
-      await stagehand.act('click "Continue as Guest", "Guest Checkout", or "Continue" button (do NOT log in, do NOT create an account)')
-      log.add('guest_step2', 'Clicked Continue as Guest (step 2)', 'success')
-      await page.waitForTimeout(3000)
-    } catch {
-      log.add('guest_step2', 'No second guest prompt (already on shipping form)', 'skipped')
+      // If we see an email field, fill it
+      if (pageText.includes('email')) {
+        if (d?.email) {
+          try {
+            await stagehand.act(`type "${d.email}" into the email address field`)
+            log.add('gate_email', 'Entered email', 'success', d.email)
+            await page.waitForTimeout(1000)
+          } catch {}
+        }
+      }
+
+      // If we see "continue as guest" or "guest checkout", click it
+      if (pageText.includes('continue as guest') || pageText.includes('guest checkout') || pageText.includes('checkout as guest')) {
+        try {
+          await stagehand.act('click "Continue as Guest" or "Guest Checkout" button (do NOT log in, do NOT create an account)')
+          log.add(`guest_step_${gateAttempt + 1}`, 'Clicked Continue as Guest', 'success')
+          await page.waitForTimeout(2000)
+        } catch {}
+      } else if (pageText.includes('continue') && !pageText.includes('first name')) {
+        // Generic "Continue" button
+        try {
+          await stagehand.act('click the "Continue" button')
+          log.add(`guest_step_${gateAttempt + 1}`, 'Clicked Continue', 'success')
+          await page.waitForTimeout(2000)
+        } catch {}
+      } else {
+        break // Nothing more to do
+      }
     }
 
     // ── Helper: try act(), then rephrase, then observe+fill ──────────
@@ -495,16 +531,7 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
         }
       }
 
-      // 5. Click "Save Address" if that popup shows up
-      try {
-        await stagehand.act('click "Save Address" or "Use This Address" button if visible')
-        log.add('save_address', 'Clicked Save Address', 'success')
-        await page.waitForTimeout(1500)
-      } catch {
-        log.add('save_address', 'No save address popup', 'skipped')
-      }
-
-      // 6. Click "Continue to Payment" / submit the delivery form
+      // 5. Click "Continue to Payment"
       await page.waitForTimeout(1000)
       try {
         await stagehand.act('click "CONTINUE TO PAYMENT", "Continue to Payment", "Continue", or the submit button to proceed to payment')
@@ -513,6 +540,25 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
         log.add('submit_shipping', 'Could not submit shipping form', 'failed', e.message)
       }
       await page.waitForTimeout(3000)
+
+      // 6. Click "Save Address" / "Save and Continue" if that popup shows up after submitting
+      try {
+        await stagehand.act('click "Save Address", "Save and Continue", "Use This Address", or "Save" button if visible')
+        log.add('save_address', 'Clicked Save Address', 'success')
+        await page.waitForTimeout(2000)
+      } catch {
+        log.add('save_address', 'No save address popup', 'skipped')
+      }
+
+      // 7. If "Continue to Payment" is still visible, click it again
+      const stillShowsContinue = await pageStillShows('continue to payment')
+      if (stillShowsContinue) {
+        try {
+          await stagehand.act('click "CONTINUE TO PAYMENT" or "Continue to Payment" button')
+          log.add('submit_shipping_retry', 'Clicked Continue to Payment again', 'success')
+          await page.waitForTimeout(3000)
+        } catch {}
+      }
 
       // 7. Check if we reached payment
       const finalUrl = page.url()
