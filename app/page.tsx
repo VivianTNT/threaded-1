@@ -32,11 +32,16 @@ type ProductsResponse = {
   cached?: boolean
 }
 
+type RecommendationRefreshStrategy = 'hybrid' | 'content'
+
 type RecommendationViewCache = {
   userId: string
   data: ProductsResponse
   selectedProductId: string | null
   showFilters: boolean
+  autoRefreshOnLike: boolean
+  preferredRefreshStrategy: RecommendationRefreshStrategy
+  recommendationsNeedRefresh: boolean
   savedAt: number
 }
 
@@ -104,6 +109,8 @@ function extractDomain(url?: string | null): string {
 
 export default function Page() {
   const { user, session, isLoading } = useRequireAuth()
+  
+  // --- CORE STATE ---
   const [selectedProduct, setSelectedProduct] = React.useState<FashionProduct | null>(null)
   const [products, setProducts] = React.useState<FashionProduct[]>([])
   const [likedProducts, setLikedProducts] = React.useState<FashionProduct[]>([])
@@ -112,12 +119,17 @@ export default function Page() {
   const [showFilters, setShowFilters] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
   const [pendingLikeProductId, setPendingLikeProductId] = React.useState<string | null>(null)
+  const [autoRefreshOnLike, setAutoRefreshOnLike] = React.useState(true)
+  const [preferredRefreshStrategy, setPreferredRefreshStrategy] = React.useState<RecommendationRefreshStrategy>('hybrid')
+  const [isRefreshingRecommendations, setIsRefreshingRecommendations] = React.useState(false)
+  const [recommendationsNeedRefresh, setRecommendationsNeedRefresh] = React.useState(false)
 
   // --- FILTER STATE ---
   const [activeFilters, setActiveFilters] = React.useState({
     searchQuery: '',
     brands: [] as string[],
     genders: [] as string[],
+    minPrice: 0,
     maxPrice: 5000,
   })
 
@@ -128,6 +140,17 @@ export default function Page() {
   const likedItemIds = React.useMemo(() => {
     return new Set(likedProducts.map((product) => product.id))
   }, [likedProducts])
+
+  // --- REFS FOR CALLBACKS ---
+  const selectedProductIdRef = React.useRef<string | null>(null)
+  const showFiltersRef = React.useRef(showFilters)
+  const autoRefreshOnLikeRef = React.useRef(autoRefreshOnLike)
+  const preferredRefreshStrategyRef = React.useRef<RecommendationRefreshStrategy>(preferredRefreshStrategy)
+
+  React.useEffect(() => { selectedProductIdRef.current = selectedProduct?.id || null }, [selectedProduct])
+  React.useEffect(() => { showFiltersRef.current = showFilters }, [showFilters])
+  React.useEffect(() => { autoRefreshOnLikeRef.current = autoRefreshOnLike }, [autoRefreshOnLike])
+  React.useEffect(() => { preferredRefreshStrategyRef.current = preferredRefreshStrategy }, [preferredRefreshStrategy])
 
   // --- DYNAMIC FILTER OPTIONS ---
   const availableBrands = React.useMemo(() => {
@@ -142,14 +165,13 @@ export default function Page() {
 
   const absoluteMaxPrice = React.useMemo(() => {
     const max = Math.max(...products.map(p => p.price || 0), 100)
-    // Round up to nearest 10 for cleaner slider
     return Math.ceil(max / 10) * 10
   }, [products])
 
   // --- FILTER LOGIC ---
   const filteredProducts = React.useMemo(() => {
     return products.filter((product) => {
-      // Search Query (Acts as a pseudo-category filter)
+      // Search Query
       if (activeFilters.searchQuery) {
         const query = activeFilters.searchQuery.toLowerCase()
         const matchName = (product.name || '').toLowerCase().includes(query)
@@ -168,7 +190,8 @@ export default function Page() {
         if (!product.gender || !activeFilters.genders.includes(product.gender)) return false
       }
 
-      // Price
+      // Price Bounds
+      if (product.price < activeFilters.minPrice) return false
       if (product.price > activeFilters.maxPrice) return false
       
       return true
@@ -199,10 +222,12 @@ export default function Page() {
       searchQuery: '',
       brands: [],
       genders: [],
+      minPrice: 0,
       maxPrice: absoluteMaxPrice,
     })
   }
 
+  // --- FETCH & CACHE LOGIC ---
   const applyProductsResponse = React.useCallback(
     (data: ProductsResponse, selectedProductId: string | null, nextShowFilters: boolean) => {
       const nextProducts = Array.isArray(data.products) ? data.products : []
@@ -220,10 +245,19 @@ export default function Page() {
     []
   )
 
-  const fetchProducts = async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+  const fetchProducts = React.useCallback(async ({
+    showLoading = true,
+    strategy = preferredRefreshStrategyRef.current,
+    forceRefresh = false,
+  }: {
+    showLoading?: boolean
+    strategy?: RecommendationRefreshStrategy
+    forceRefresh?: boolean
+  } = {}) => {
     if (!user) return
 
     try {
+      setIsRefreshingRecommendations(true)
       if (showLoading) {
         setIsLoadingProducts(true)
       }
@@ -231,22 +265,31 @@ export default function Page() {
         limit: '50',
         userId: user.id || '',
         userEmail: user.email || '',
+        strategy,
       })
+      if (forceRefresh) {
+        params.set('forceRefresh', '1')
+      }
       const response = await fetch(`/api/products?${params.toString()}`)
       const data = await response.json()
 
       if (data.success) {
         applyProductsResponse(
           data as ProductsResponse,
-          selectedProduct?.id || null,
-          showFilters
+          selectedProductIdRef.current,
+          showFiltersRef.current
         )
+        setPreferredRefreshStrategy(strategy)
+        setRecommendationsNeedRefresh(false)
 
         writeRecommendationViewCache({
           userId: user.id,
           data: data as ProductsResponse,
-          selectedProductId: selectedProduct?.id || null,
-          showFilters,
+          selectedProductId: selectedProductIdRef.current,
+          showFilters: showFiltersRef.current,
+          autoRefreshOnLike: autoRefreshOnLikeRef.current,
+          preferredRefreshStrategy: strategy,
+          recommendationsNeedRefresh: false,
           savedAt: Date.now(),
         })
       } else {
@@ -256,30 +299,35 @@ export default function Page() {
       console.error('Error fetching products:', error)
     } finally {
       setIsLoadingProducts(false)
+      setIsRefreshingRecommendations(false)
     }
-  }
+  }, [user, applyProductsResponse])
 
   React.useEffect(() => {
     if (user) {
       const cachedView = readRecommendationViewCache(user.id)
       if (cachedView?.data?.success) {
+        const cachedStrategy = cachedView.preferredRefreshStrategy === 'content' ? 'content' : 'hybrid'
         applyProductsResponse(
           cachedView.data,
           cachedView.selectedProductId,
           cachedView.showFilters
         )
+        setAutoRefreshOnLike(cachedView.autoRefreshOnLike ?? true)
+        setPreferredRefreshStrategy(cachedStrategy)
+        setRecommendationsNeedRefresh(Boolean(cachedView.recommendationsNeedRefresh))
         setIsLoadingProducts(false)
 
         const shouldRevalidate = Date.now() - cachedView.savedAt > CLIENT_REVALIDATE_AFTER_MS
         if (shouldRevalidate) {
-          void fetchProducts({ showLoading: false })
+          void fetchProducts({ showLoading: false, strategy: cachedStrategy })
         }
         return
       }
 
-      void fetchProducts({ showLoading: true })
+      void fetchProducts({ showLoading: true, strategy: 'hybrid' })
     }
-  }, [user, applyProductsResponse])
+  }, [user, applyProductsResponse, fetchProducts])
 
   React.useEffect(() => {
     if (!user) return
@@ -296,9 +344,23 @@ export default function Page() {
       },
       selectedProductId: selectedProduct?.id || null,
       showFilters,
+      autoRefreshOnLike,
+      preferredRefreshStrategy,
+      recommendationsNeedRefresh,
       savedAt: Date.now(),
     })
-  }, [user, products, likedProducts, recommendationMode, recommendationEngine, selectedProduct, showFilters])
+  }, [
+    user,
+    products,
+    likedProducts,
+    recommendationMode,
+    recommendationEngine,
+    selectedProduct,
+    showFilters,
+    autoRefreshOnLike,
+    preferredRefreshStrategy,
+    recommendationsNeedRefresh,
+  ])
 
   const applyOptimisticLikeToggle = React.useCallback(
     (product: FashionProduct, action: 'like' | 'unlike') => {
@@ -361,7 +423,16 @@ export default function Page() {
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to update liked products')
       }
-      void fetchProducts({ showLoading: false })
+      
+      if (autoRefreshOnLike) {
+        void fetchProducts({
+          showLoading: false,
+          strategy: preferredRefreshStrategy,
+          forceRefresh: true,
+        })
+      } else {
+        setRecommendationsNeedRefresh(true)
+      }
     } catch (error) {
       console.error('Failed to toggle like:', error)
       setProducts(previousProducts)
@@ -370,6 +441,26 @@ export default function Page() {
     } finally {
       setPendingLikeProductId(null)
     }
+  }
+
+  const handleRefreshRecommendations = (strategy: RecommendationRefreshStrategy) => {
+    setPreferredRefreshStrategy(strategy)
+    void fetchProducts({
+      showLoading: products.length === 0 && likedProducts.length === 0,
+      strategy,
+      forceRefresh: true,
+    })
+  }
+
+  // Get similar products based on domain and gender
+  const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
+    const productDomain = extractDomain(product.product_url);
+    return allProducts
+      .filter(p =>
+        p.id !== product.id &&
+        (p.gender === product.gender || extractDomain(p.product_url) === productDomain)
+        )
+      .slice(0, 4)
   }
 
   if (isLoading) {
@@ -384,18 +475,15 @@ export default function Page() {
     return null // Will redirect to login
   }
 
-  // Get similar products based on category and style
-  const getSimilarProducts = (product: FashionProduct): FashionProduct[] => {
-    const productDomain = extractDomain(product.product_url);
-    return allProducts
-      .filter(p =>
-        p.id !== product.id &&
-        (p.category === product.category ||
-         p.style.some(s => product.style.includes(s)) ||
-         extractDomain(p.product_url) === productDomain)
-        )
-      .slice(0, 4)
-  }
+  const selectedModelLabel =
+    preferredRefreshStrategy === 'hybrid'
+      ? 'Two-Tower Neural Network selected'
+      : 'Content Filtering selected'
+
+  const selectedModelDescription =
+    preferredRefreshStrategy === 'hybrid'
+      ? 'The Two-Tower neural network blends multiple signals to surface more diverse and novel recommendations.'
+      : 'Content filtering compares image embeddings only, so it is best for finding items that look very similar to your liked products and uploaded photos.'
 
   const engineBadgeLabel =
     recommendationEngine === 'faiss_two_tower_hybrid'
@@ -439,17 +527,63 @@ export default function Page() {
                     <p className="text-muted-foreground mb-4">
                       Discover curated items tailored to your personal style. Our AI analyzes your preferences to find pieces you'll love.
                     </p>
+
+                    {/* Refresh Settings Block */}
+                    <div className="mb-4 flex flex-col gap-3 rounded-lg border bg-background/80 p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              id="auto-refresh-recommendations"
+                              checked={autoRefreshOnLike}
+                              onCheckedChange={setAutoRefreshOnLike}
+                            />
+                            <Label htmlFor="auto-refresh-recommendations">
+                              Auto-refresh recommendations after likes/unlikes
+                            </Label>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {autoRefreshOnLike
+                              ? `Likes rerun your ${preferredRefreshStrategy === 'hybrid' ? 'Two-Tower neural network' : 'content filtering model'} in the background.`
+                              : 'Likes update instantly, and you choose when to rerun recommendations.'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant={preferredRefreshStrategy === 'hybrid' ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={isRefreshingRecommendations}
+                            onClick={() => handleRefreshRecommendations('hybrid')}
+                          >
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingRecommendations && preferredRefreshStrategy === 'hybrid' ? 'animate-spin' : ''}`} />
+                            Refresh Hybrid Model
+                          </Button>
+                          <Button
+                            variant={preferredRefreshStrategy === 'content' ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={isRefreshingRecommendations}
+                            onClick={() => handleRefreshRecommendations('content')}
+                          >
+                            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingRecommendations && preferredRefreshStrategy === 'content' ? 'animate-spin' : ''}`} />
+                            Refresh Content Filtering
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedModelDescription}
+                      </p>
+                      {recommendationsNeedRefresh && (
+                        <p className="text-sm text-amber-700">
+                          Your likes changed. Refresh recommendations when you are ready.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="flex flex-wrap gap-2">
                       {recommendationMode === 'personalized_image' || recommendationMode === 'personalized_hybrid_api' ? (
                         <>
-                          <Badge variant="secondary">
-                            {recommendationMode === 'personalized_hybrid_api'
-                              ? 'Personalized by hybrid ranker'
-                              : 'Personalized by image likes'}
-                          </Badge>
-                          <Badge variant={engineBadgeVariant}>
-                            {engineBadgeLabel}
-                          </Badge>
+                          <Badge variant="secondary">{selectedModelLabel}</Badge>
+                          <Badge variant={engineBadgeVariant}>{engineBadgeLabel}</Badge>
                           <Badge variant="outline">{products.length} recommendations</Badge>
                         </>
                       ) : (
@@ -463,12 +597,13 @@ export default function Page() {
                   </div>
                 </div>
 
+                {/* Already Liked Section */}
                 {likedProducts.length > 0 && (
                   <div className="px-4 lg:px-6">
                     <div className="mb-3">
                       <h2 className="text-xl font-semibold">Already Liked</h2>
                       <p className="text-sm text-muted-foreground">
-                        {likedProducts.length} items you selected during signup
+                        {likedProducts.length} items you liked
                       </p>
                     </div>
                     <FashionGrid
@@ -477,6 +612,7 @@ export default function Page() {
                       likedItems={likedItemIds}
                       onToggleLike={handleToggleLike}
                       pendingLikeProductId={pendingLikeProductId}
+                      maxTopPickCount={0}
                     />
                   </div>
                 )}
@@ -529,22 +665,36 @@ export default function Page() {
                         </div>
                       </div>
 
-                      {/* Price Range Slider */}
+                      {/* Min/Max Price Inputs */}
                       <div className="space-y-3">
-                        <h4 className="text-sm font-semibold">Max Price</h4>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>$0</span>
-                          <span>${activeFilters.maxPrice}</span>
+                        <h4 className="text-sm font-semibold">Price Range</h4>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex flex-col w-full">
+                            <span className="text-xs text-muted-foreground mb-1">Min ($)</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={activeFilters.maxPrice}
+                              value={activeFilters.minPrice || ''}
+                              onChange={(e) => setActiveFilters(prev => ({ ...prev, minPrice: parseInt(e.target.value) || 0 }))}
+                              className="h-8 text-sm px-2"
+                              placeholder="0"
+                            />
+                          </div>
+                          <span className="text-muted-foreground mt-4">-</span>
+                          <div className="flex flex-col w-full">
+                            <span className="text-xs text-muted-foreground mb-1">Max ($)</span>
+                            <Input
+                              type="number"
+                              min={activeFilters.minPrice}
+                              max={absoluteMaxPrice}
+                              value={activeFilters.maxPrice || ''}
+                              onChange={(e) => setActiveFilters(prev => ({ ...prev, maxPrice: parseInt(e.target.value) || 0 }))}
+                              className="h-8 text-sm px-2"
+                              placeholder={absoluteMaxPrice.toString()}
+                            />
+                          </div>
                         </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={absoluteMaxPrice}
-                          step={10}
-                          value={activeFilters.maxPrice}
-                          onChange={(e) => setActiveFilters(prev => ({ ...prev, maxPrice: parseInt(e.target.value) }))}
-                          className="w-full accent-primary"
-                        />
                       </div>
 
                       {/* Genders */}
@@ -598,7 +748,7 @@ export default function Page() {
                   ) : filteredProducts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <div className="text-muted-foreground mb-2">No products found</div>
-                      <p className="text-sm text-muted-foreground">Check back soon for new recommendations</p>
+                      <p className="text-sm text-muted-foreground">Adjust filters or check back soon</p>
                       <Button variant="link" onClick={clearFilters}>
                         Clear all filters
                       </Button>
@@ -610,6 +760,7 @@ export default function Page() {
                       likedItems={likedItemIds}
                       onToggleLike={handleToggleLike}
                       pendingLikeProductId={pendingLikeProductId}
+                      maxTopPickCount={8}
                     />
                   )}
                   </div>
