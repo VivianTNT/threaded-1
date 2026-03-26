@@ -108,14 +108,20 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
   const startTime = Date.now()
   const log = createStepLogger()
 
-  // Dynamic import — Stagehand is an ESM package
+  // Dynamic import — Stagehand needs Playwright/Chromium which only works locally
   let Stagehand: any
   try {
     const mod = await import('@browserbasehq/stagehand')
     Stagehand = mod.Stagehand
   } catch (e: any) {
-    log.add('init', 'Failed to import Stagehand', 'failed', e.message)
-    return { success: false, product_url: req.product_url, steps: log.steps, error: 'Stagehand not available: ' + e.message, elapsed_ms: Date.now() - startTime }
+    log.add('init', 'Stagehand not available (requires local environment with Chromium)', 'failed', e.message)
+    return {
+      success: false,
+      product_url: req.product_url,
+      steps: log.steps,
+      error: 'Agentic checkout requires a local environment with Chromium installed. It cannot run on serverless (Vercel). Run the app locally with `npm run dev` to use this feature.',
+      elapsed_ms: Date.now() - startTime,
+    }
   }
 
   let stagehand: any = null
@@ -196,7 +202,7 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
       await page.waitForTimeout(500)
     }
 
-    // ── Add to bag (one click only) ─────────────────────────────────────
+    // ── Add to bag ─────────────────────────────────────────────────────
     try {
       await stagehand.act('click the "Add to bag" or "Add to Cart" button')
       log.add('add_to_bag', 'Clicked Add to Bag', 'success')
@@ -205,6 +211,31 @@ async function executePurchase(req: PurchaseRequest): Promise<PurchaseResult> {
       return { success: false, product_url: req.product_url, steps: log.steps, cart_status: 'failed', error: 'Could not add to bag', elapsed_ms: Date.now() - startTime }
     }
     await page.waitForTimeout(2000)
+
+    // ── Check for "please select a size" error — if so, select size and retry ──
+    {
+      const needsSize = await page.evaluate(() =>
+        document.body.innerText.toLowerCase().includes('please select a size') ||
+        document.body.innerText.toLowerCase().includes('select a size')
+      ).catch(() => false)
+      if (needsSize) {
+        log.add('size_retry', 'Page says "please select a size" — retrying size selection', 'failed')
+        try { await stagehand.act('click the "XL" size button') } catch {
+          try { await stagehand.act('click the "L" size button') } catch {
+            try { await stagehand.act('click the "M" size button') } catch {
+              try { await stagehand.act('click the "8" size button') } catch {}
+            }
+          }
+        }
+        await page.waitForTimeout(500)
+        // Retry add to bag
+        try {
+          await stagehand.act('click the "Add to bag" or "Add to Cart" button')
+          log.add('add_to_bag_retry', 'Added to bag after size selection', 'success')
+        } catch {}
+        await page.waitForTimeout(2000)
+      }
+    }
 
     // ── A popup appears — click "Go to bag" inside it ────────────────
     try {
