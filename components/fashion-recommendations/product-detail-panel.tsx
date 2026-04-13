@@ -131,8 +131,8 @@ export function ProductDetailPanel({
               </div>
             )}
 
-            {/* Details - Always showing Gender since null maps to Unisex */}
-            {(product.category || true || (product.material && product.material.length > 0) || (product.season && product.season.length > 0)) && (
+            {/* Details - Only show if values exist */}
+            {(product.category || product.gender || (product.material && product.material.length > 0) || (product.season && product.season.length > 0)) && (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {product.category && (
                   <div>
