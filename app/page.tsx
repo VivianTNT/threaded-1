@@ -107,6 +107,15 @@ function extractDomain(url?: string | null): string {
   }
 }
 
+// --- Map Database Gender to UI Label ---
+function mapGenderLabel(gender?: string | null): string {
+  if (!gender) return 'Unisex'
+  const lower = gender.toLowerCase()
+  if (lower === 'm') return "Men's"
+  if (lower === 'w') return "Women's"
+  return gender // Fallback for unexpected values
+}
+
 export default function Page() {
   const { user, session, isLoading } = useRequireAuth()
   
@@ -159,7 +168,7 @@ export default function Page() {
   }, [products])
   
   const availableGenders = React.useMemo(() => {
-    const genders = products.map(p => p.gender).filter(Boolean) as string[]
+    const genders = products.map(p => mapGenderLabel(p.gender))
     return Array.from(new Set(genders)).sort()
   }, [products])
 
@@ -185,9 +194,10 @@ export default function Page() {
         if (!activeFilters.brands.includes(productBrand)) return false
       }
 
-      // Gender
+      // Gender (Mapped to UI Labels)
       if (activeFilters.genders.length > 0) {
-        if (!product.gender || !activeFilters.genders.includes(product.gender)) return false
+        const productGenderLabel = mapGenderLabel(product.gender)
+        if (!activeFilters.genders.includes(productGenderLabel)) return false
       }
 
       // Price Bounds
@@ -470,7 +480,7 @@ export default function Page() {
     return allProducts
       .filter(p =>
         p.id !== product.id &&
-        (p.gender === product.gender || extractDomain(p.product_url) === productDomain)
+        ((p.gender || null) === (product.gender || null) || extractDomain(p.product_url) === productDomain)
         )
       .slice(0, 4)
   }

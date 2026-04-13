@@ -10,6 +10,15 @@ import { FashionProduct } from "@/lib/types/fashion-product"
 import { cn } from "@/lib/utils"
 import { useCart } from "@/lib/cart-context"
 
+// --- Map Database Gender to UI Label ---
+function mapGenderLabel(gender?: string | null): string {
+  if (!gender) return 'Unisex'
+  const lower = gender.toLowerCase()
+  if (lower === 'm') return "Men's"
+  if (lower === 'w') return "Women's"
+  return gender // Fallback for unexpected values
+}
+
 interface ProductDetailPanelProps {
   product: FashionProduct
   similarProducts: FashionProduct[]
@@ -122,8 +131,8 @@ export function ProductDetailPanel({
               </div>
             )}
 
-            {/* Details - Only show if values exist */}
-            {(product.category || product.gender || (product.material && product.material.length > 0) || (product.season && product.season.length > 0)) && (
+            {/* Details - Always showing Gender since null maps to Unisex */}
+            {(product.category || true || (product.material && product.material.length > 0) || (product.season && product.season.length > 0)) && (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {product.category && (
                   <div>
@@ -134,7 +143,7 @@ export function ProductDetailPanel({
                 {product.gender && (
                   <div>
                     <div className="text-muted-foreground">Gender</div>
-                    <div className="font-medium">{product.gender}</div>
+                    <div className="font-medium">{mapGenderLabel(product.gender)}</div>
                   </div>
                 )}
                 {product.material && product.material.length > 0 && (
