@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { getProductGenderLabel } from '@/lib/product-gender'
 
 import {
   SidebarInset,
@@ -107,15 +108,6 @@ function extractDomain(url?: string | null): string {
   }
 }
 
-// --- Map Database Gender to UI Label ---
-function mapGenderLabel(gender?: string | null): string {
-  if (!gender) return 'Unisex'
-  const lower = gender.toLowerCase()
-  if (lower === 'm') return "Men's"
-  if (lower === 'w') return "Women's"
-  return gender // Fallback for unexpected values
-}
-
 export default function Page() {
   const { user, session, isLoading } = useRequireAuth()
   
@@ -168,7 +160,7 @@ export default function Page() {
   }, [products])
   
   const availableGenders = React.useMemo(() => {
-    const genders = products.map(p => mapGenderLabel(p.gender))
+    const genders = products.map(p => getProductGenderLabel(p.gender))
     return Array.from(new Set(genders)).sort()
   }, [products])
 
@@ -196,7 +188,7 @@ export default function Page() {
 
       // Gender (Mapped to UI Labels)
       if (activeFilters.genders.length > 0) {
-        const productGenderLabel = mapGenderLabel(product.gender)
+        const productGenderLabel = getProductGenderLabel(product.gender)
         if (!activeFilters.genders.includes(productGenderLabel)) return false
       }
 

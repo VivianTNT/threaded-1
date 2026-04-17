@@ -1,4 +1,5 @@
 import { FashionProduct } from './types/fashion-product'
+import { normalizeProductGender } from './product-gender'
 
 // Penn database product structure
 export interface PennProduct {
@@ -11,6 +12,7 @@ export interface PennProduct {
   created_at: string
   brand_name: string | null
   category: string | null
+  gender: string | null
   description: string
   currency: string | null
 }
@@ -75,7 +77,7 @@ export function transformPennProduct(pennProduct: PennProduct): FashionProduct {
     color: ['Various'], // Default
     material: ['Mixed Materials'], // Default
     season: ['All Season'],
-    gender: 'Unisex',
+    gender: normalizeProductGender(pennProduct.gender),
     sizes_available: ['S', 'M', 'L', 'XL'], // Default sizes
     description: pennProduct.description || null,
     image_url: pennProduct.image_url || placeholderImage,

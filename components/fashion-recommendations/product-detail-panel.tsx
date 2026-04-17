@@ -9,15 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { FashionProduct } from "@/lib/types/fashion-product"
 import { cn } from "@/lib/utils"
 import { useCart } from "@/lib/cart-context"
-
-// --- Map Database Gender to UI Label ---
-function mapGenderLabel(gender?: string | null): string {
-  if (!gender) return 'Unisex'
-  const lower = gender.toLowerCase()
-  if (lower === 'm') return "Men's"
-  if (lower === 'w') return "Women's"
-  return gender // Fallback for unexpected values
-}
+import { getProductGenderLabel } from "@/lib/product-gender"
 
 interface ProductDetailPanelProps {
   product: FashionProduct
@@ -143,7 +135,7 @@ export function ProductDetailPanel({
                 {product.gender && (
                   <div>
                     <div className="text-muted-foreground">Gender</div>
-                    <div className="font-medium">{mapGenderLabel(product.gender)}</div>
+                    <div className="font-medium">{getProductGenderLabel(product.gender)}</div>
                   </div>
                 )}
                 {product.material && product.material.length > 0 && (
